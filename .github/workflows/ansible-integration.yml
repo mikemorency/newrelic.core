@@ -72,6 +72,7 @@ jobs:
           testing-type: integration
           pull-request-change-detection: false
           coverage: never
+          pre-test-cmd: ./tests/integration/generate_integration_config.sh
         env:
           NR_API_KEY: ${{ secrets.NR_API_KEY }}
           NR_ACCOUNT_ID: ${{ secrets.NR_ACCOUNT_ID }}

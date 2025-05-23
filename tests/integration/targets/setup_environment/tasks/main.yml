@@ -5,10 +5,14 @@
 
 - name: Check API Key Was Provided
   ansible.builtin.assert:
-    that: integration_config_nr_api_key is defined and integration_config_nr_api_key
+    that:
+      - integration_config_nr_api_key is defined
+      - integration_config_nr_api_key | length > 0
     fail_msg: Please set the environment variable NR_API_KEY to your New Relic API key
 
 - name: Check Account ID Was Provided
   ansible.builtin.assert:
-    that: integration_config_nr_account_id is defined and integration_config_nr_account_id
+    that:
+      - integration_config_nr_account_id is defined
+      - integration_config_nr_account_id | length > 0
     fail_msg: Please set the environment variable NR_ACCOUNT_ID to your New Relic account ID

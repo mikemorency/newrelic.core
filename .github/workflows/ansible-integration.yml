@@ -72,6 +72,9 @@ jobs:
           testing-type: integration
           pull-request-change-detection: false
           coverage: never
+        env:
+          NR_API_KEY: ${{ secrets.NR_API_KEY }}
+          NR_ACCOUNT_ID: ${{ secrets.NR_ACCOUNT_ID }}
 
   # This job does nothing and is only used for the branch protection
   # or multi-stage CI jobs, like making sure that all tests pass before

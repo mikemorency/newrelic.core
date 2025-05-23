@@ -1,0 +1,86 @@
+---
+- name: Test
+  environment:
+    NR_API_KEY: "{{ integration_config_nr_api_key }}"
+    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id }}"
+    NR_LOG_LEVEL: "{{ integration_config_nr_log_level }}"
+  block:
+    - name: Create Test Alert Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        incident_preference: PER_POLICY
+      register: _create_policy
+    - name: Create Test Alert Policy - Idempotence
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        incident_preference: PER_POLICY
+      register: _create_policy_idem
+    - name: Gather Info About Alert Policy - Name
+      newrelic.core.alert_policy_info:
+        name: "{{ alert_policy_test_name }}"
+      register: _policy_info_name_test
+    - name: Check Name Output
+      ansible.builtin.assert:
+        that:
+          - _create_policy is changed
+          - _create_policy_idem is not changed
+          - _policy_info_name_test.policies | length == 1
+          - _policy_info_name_test.policies[0].name == alert_policy_test_name
+          - _policy_info_name_test.policies[0].incident_preference == "PER_POLICY"
+
+    - name: Gather Info About An Alert Policy Name Like
+      newrelic.core.alert_policy_info:
+        name_like: "{{ test_prefix }}%"
+      register: _policy_info_name_like
+    - name: Check Name Like Output
+      ansible.builtin.assert:
+        that:
+          - _policy_info_name_like.policies | length >= 1
+
+    - name: Update Test Alert Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        incident_preference: PER_CONDITION
+      register: _update_policy
+    - name: Update Test Alert Policy - Idempotence
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        incident_preference: PER_CONDITION
+      register: _update_policy_idem
+    - name: Gather Info About Updated Policy
+      newrelic.core.alert_policy_info:
+        name: "{{ alert_policy_test_name }}"
+      register: _update_policy_info
+    - name: Check Name Like Output
+      ansible.builtin.assert:
+        that:
+          - _update_policy is changed
+          - _update_policy_idem is not changed
+          - _update_policy_info.policies | length == 1
+          - _update_policy_info.policies[0].incident_preference == 'PER_CONDITION'
+
+    - name: Delete Test Alert Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        state: absent
+      register: _delete_policy
+    - name: Delete Test Alert Policy - Idempotence
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        state: absent
+      register: _delete_policy_idem
+    - name: Gather Info About Deleted Policy
+      newrelic.core.alert_policy_info:
+        name: "{{ alert_policy_test_name }}"
+      register: _delete_policy_info
+    - name: Check Name Like Output
+      ansible.builtin.assert:
+        that:
+          - _delete_policy is changed
+          - _delete_policy_idem is not changed
+          - _delete_policy_info.policies | length == 0
+  always:
+    - name: Cleanup Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_policy_test_name }}"
+        state: absent

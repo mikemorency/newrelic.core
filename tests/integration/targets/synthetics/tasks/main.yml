@@ -1,0 +1,18 @@
+---
+- name: Test
+  environment:
+    NR_API_KEY: "{{ integration_config_nr_api_key }}"
+    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id }}"
+    NR_LOG_LEVEL: "{{ integration_config_nr_log_level }}"
+  block:
+    - name: Create Test Alert Policy
+      newrelic.core.alert_policy:
+        name: "{{ synthetics_test_policy }}"
+    - name: Test Ping Monitor
+      ansible.builtin.include_tasks: ping_synthetic.yml
+
+  always:
+    - name: Cleanup Policy
+      newrelic.core.alert_policy:
+        name: "{{ synthetics_test_policy }}"
+        state: absent

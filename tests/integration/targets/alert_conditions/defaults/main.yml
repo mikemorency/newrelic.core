@@ -1,0 +1,4 @@
+---
+alert_conditions_test_policy: "{{ test_prefix }}-alert_condition_policy"
+alert_conditions_test_monitor: "{{ test_prefix }}-alert_condition_monitor"
+alert_conditions_test_name: "{{ test_prefix }}-alert_conditon"

@@ -1,0 +1,29 @@
+---
+### REQUIRED
+namespace: newrelic
+name: core
+
+version: '0.0.1'
+
+readme: README.md
+
+authors:
+  - Mike Morency <mikemorency93@gmail.com>
+
+description: >-
+  Modules for managing New Relic resources
+
+license:
+  - GPL-3.0-or-later
+
+license_file: LICENSE
+
+tags: ['newrelic', 'new relic']
+
+dependencies: {}
+
+repository: 'https://github.com/mikemorency/newrelic.core'
+
+build_ignore:
+  - .venv
+  - .vscode

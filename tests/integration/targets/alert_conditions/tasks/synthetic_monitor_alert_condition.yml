@@ -1,0 +1,100 @@
+---
+- name: Test
+  block:
+    - name: Create Test Synthetic Alert
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        policy_id: "{{ _test_policy.policy.id }}"
+        monitor_guid: "{{ _test_synth.monitor.guid }}"
+        critical_incident:
+          failed_locations_threshold: 1
+          duration: 600
+      register: _create_synth_alert
+
+    - name: Create Test Synthetic Alert - Idempotence
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        policy_id: "{{ _test_policy.policy.id }}"
+        monitor_guid: "{{ _test_synth.monitor.guid }}"
+        critical_incident:
+          failed_locations_threshold: 1
+          duration: 600
+      register: _create_synth_alert_idem
+
+    - name: Check Synth Alert Create
+      ansible.builtin.assert:
+        that:
+          - _create_synth_alert is changed
+          - _create_synth_alert_idem is not changed
+
+    - name: Update Test Synthetic Alert
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        policy_id: "{{ _test_policy.policy.id }}"
+        monitor_guid: "{{ _test_synth.monitor.guid }}"
+        runbook_url: 'http://localhost'
+        description: test monitor
+        data_aggregation_delay: 300
+        data_aggregation_window: 30
+        critical_incident:
+          failed_locations_threshold: 2
+          duration: 600
+        warning_incident:
+          failed_locations_threshold: 1
+          duration: 1200
+      register: _update_synth_alert
+
+    - name: Update Test Synthetic Alert - Idempotence
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        policy_id: "{{ _test_policy.policy.id }}"
+        monitor_guid: "{{ _test_synth.monitor.guid }}"
+        runbook_url: 'http://localhost'
+        description: test monitor
+        data_aggregation_delay: 300
+        data_aggregation_window: 30
+        critical_incident:
+          failed_locations_threshold: 2
+          duration: 600
+        warning_incident:
+          failed_locations_threshold: 1
+          duration: 1200
+      register: _update_synth_alert_idem
+
+    - name: Lookup Alert Info
+      newrelic.core.alert_condition_info:
+        name: "{{ alert_conditions_test_name }}"
+        policy_id: "{{ _test_policy.policy.id }}"
+      register: _alert_info
+
+    - name: Check Synth Alert Update
+      ansible.builtin.assert:
+        that:
+          - _update_synth_alert is changed
+          - _update_synth_alert_idem is not changed
+
+    - name: Remove Test Synthetic Alert
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        state: absent
+        policy_id: "{{ _test_policy.policy.id }}"
+      register: _rm_synth_alert
+
+    - name: Remove Test Synthetic Alert - Idempotence
+      newrelic.core.synthetic_monitor_alert_condition:
+        name: "{{ alert_conditions_test_name }}"
+        state: absent
+        policy_id: "{{ _test_policy.policy.id }}"
+      register: _rm_synth_alert_idem
+
+    - name: Check Synth Alert Remove
+      ansible.builtin.assert:
+        that:
+          - _rm_synth_alert is changed
+          - _rm_synth_alert_idem is not changed
+
+  always:
+    - name: Cleanup Synth Alert
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ alert_conditions_test_name }}"
+        state: absent

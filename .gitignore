@@ -1,0 +1,8 @@
+__pycache__
+*.tar.gz
+
+# ansible lint
+.cache
+
+# tests
+tests/integration/integration_config.yml

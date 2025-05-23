@@ -1,0 +1,28 @@
+---
+- name: Test
+  environment:
+    NR_API_KEY: "{{ integration_config_nr_api_key }}"
+    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id }}"
+    NR_LOG_LEVEL: "{{ integration_config_nr_log_level }}"
+  block:
+    - name: Create Test Alert Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_conditions_test_policy }}"
+      register: _test_policy
+    - name: Create Test Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ alert_conditions_test_monitor }}"
+        url: "https://example.com"
+      register: _test_synth
+    - name: Test synthetic_monitor_alert_condition
+      ansible.builtin.include_tasks: synthetic_monitor_alert_condition.yml
+
+  always:
+    - name: Cleanup Policy
+      newrelic.core.alert_policy:
+        name: "{{ alert_conditions_test_policy }}"
+        state: absent
+    - name: Cleanup Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ alert_conditions_test_monitor }}"
+        state: absent

@@ -1,0 +1,2 @@
+---
+alert_policy_test_name: "{{ test_prefix }}-alert_policy"

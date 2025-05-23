@@ -1,0 +1,20 @@
+---
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+
+  - repo: local
+    hooks:
+      - id: sanity
+        name: sanity
+        entry: bash -c 'make sanity'
+        language: system
+        types: [python]
+        pass_filenames: false

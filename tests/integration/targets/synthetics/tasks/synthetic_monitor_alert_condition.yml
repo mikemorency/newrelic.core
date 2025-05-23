@@ -1,0 +1,72 @@
+---
+- name: Test
+  block:
+    - name: Create Test Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        url: "https://example.com"
+      register: _ping_synth
+
+    - name: Create Test Ping Monitor - Idempotence
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        url: "https://example.com"
+      register: _ping_synth_idem
+
+    - name: Check Ping Monitor Create
+      ansible.builtin.assert:
+        that:
+          - _ping_synth is changed
+          - _ping_synth_idem is not changed
+
+    - name: Update Test Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        url: "https://example.com"
+        enabled: false
+        period: EVERY_HOUR
+        public_locations: ["AWS_US_WEST_1"]
+        verify_ssl: true
+        validation_string: Example
+      register: _ping_update
+
+    - name: Update Test Ping Monitor - Idempotence
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        url: "https://example.com"
+        enabled: false
+        period: EVERY_HOUR
+        public_locations: ["AWS_US_WEST_1"]
+        verify_ssl: true
+        validation_string: Example
+      register: _ping_update_idem
+
+    - name: Check Ping Monitor Update
+      ansible.builtin.assert:
+        that:
+          - _ping_update is changed
+          - _ping_update_idem is not changed
+
+    - name: Remove Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        state: absent
+      register: _rm_ping
+
+    - name: Remove Ping Monitor - Idempotence
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        state: absent
+      register: _rm_ping_idem
+
+    - name: Check Ping Monitor Remove
+      ansible.builtin.assert:
+        that:
+          - _rm_ping is changed
+          - _rm_ping_idem is not changed
+
+  always:
+    - name: Cleanup Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        state: absent

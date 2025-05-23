@@ -1,0 +1,127 @@
+---
+- name: Test
+  environment:
+    NR_API_KEY: "{{ integration_config_nr_api_key }}"
+    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id }}"
+    NR_LOG_LEVEL: "{{ integration_config_nr_log_level }}"
+  block:
+    - name: Create Test Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        url: "https://example.com"
+      register: _ping_synth
+    - name: Add Tags
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        tags:
+          one: [1, one]
+          two: two
+          three: false
+      register: _add
+    - name: Add Tags - Idempotence
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        tags:
+          one: [1, one]
+          two: two
+          three: false
+      register: _add_idem
+    - name: Get Entity Info
+      newrelic.core.entity_info:
+        guid: "{{ _ping_synth.monitor.guid }}"
+      register: _entity_info
+    - name: Check Add
+      ansible.builtin.assert:
+        that:
+          - _add is changed
+          - _add_idem is not changed
+          - _entity_info.entities[0].tags.one | difference(['1', 'one']) == []
+          - _entity_info.entities[0].tags.two == ['two']
+          - _entity_info.entities[0].tags.three == ['False']
+
+    - name: Update Tags
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        tags:
+          two: [a]
+      register: _update
+    - name: Update Tags - Idempotence
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        tags:
+          two: [a]
+      register: _update_idem
+    - name: Get Entity Info
+      newrelic.core.entity_info:
+        guid: "{{ _ping_synth.monitor.guid }}"
+      register: _entity_info
+    - name: Check Update
+      ansible.builtin.assert:
+        that:
+          - _update is changed
+          - _update_idem is not changed
+          - _entity_info.entities[0].tags.one | difference(['1', 'one']) == []
+          - _entity_info.entities[0].tags.two | difference(['two', 'a']) == []
+          - _entity_info.entities[0].tags.three == ['False']
+
+    - name: Replace Tags
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        append: false
+        tags:
+          two: [b]
+      register: _replace
+    - name: Replace Tags - Idempotence
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        append: false
+        tags:
+          two: [b]
+      register: _replace_idem
+    - name: Get Entity Info
+      newrelic.core.entity_info:
+        guid: "{{ _ping_synth.monitor.guid }}"
+      register: _entity_info
+    - name: Check Replace
+      ansible.builtin.assert:
+        that:
+          - _replace is changed
+          - _replace_idem is not changed
+          - _entity_info.entities[0].tags.one | difference(['1', 'one']) == []
+          - _entity_info.entities[0].tags.two == ['b']
+          - _entity_info.entities[0].tags.three == ['False']
+
+    - name: Remove Tags
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        state: absent
+        tags:
+          one: [one]
+          two: []
+      register: _rm
+    - name: Remove Tags - Idempotence
+      newrelic.core.entity_tags:
+        guid: "{{ _ping_synth.monitor.guid }}"
+        state: absent
+        tags:
+          one: [one]
+          two: []
+      register: _rm_idem
+    - name: Get Entity Info
+      newrelic.core.entity_info:
+        guid: "{{ _ping_synth.monitor.guid }}"
+      register: _entity_info
+    - name: Check Remove
+      ansible.builtin.assert:
+        that:
+          - _rm is changed
+          - _rm_idem is not changed
+          - _entity_info.entities[0].tags.one == ['1']
+          - _entity_info.entities[0].tags.two is not defined
+          - _entity_info.entities[0].tags.three == ['False']
+
+  always:
+    - name: Cleanup Ping Monitor
+      newrelic.core.ping_synthetic_monitor:
+        name: "{{ synthetics_test_name }}"
+        state: absent

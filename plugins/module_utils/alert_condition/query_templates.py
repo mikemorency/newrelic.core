@@ -111,8 +111,8 @@ class NrqlStaticAlertConditionTemplates:
             '  runbookUrl: "{{ condition.runbook_url }}",'
             "  {% endif %}"
             "  signal: {"
-            "    {% if condition.signal_slide_by %}"
-            "    slideBy: {{ condition.signal_slide_by }},"
+            "    {% if condition.data_slide_by %}"
+            "    slideBy: {{ condition.data_slide_by }},"
             "    {% endif %}"
             '    {% if condition.data_aggregation_method != "EVENT_TIMER" %}'
             "    aggregationDelay: {{ condition.data_aggregation_delay }},"

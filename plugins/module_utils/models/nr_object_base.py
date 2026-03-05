@@ -1,7 +1,13 @@
 import logging
+from enum import Enum
 
 
 logger = logging.getLogger(__name__)
+
+
+class NrStringEnum(str, Enum):
+    def __str__(self):
+        return self.name
 
 
 class NrObjectBase:

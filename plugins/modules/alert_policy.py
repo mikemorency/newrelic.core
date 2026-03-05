@@ -72,10 +72,11 @@ policy:
 from ansible.module_utils.basic import AnsibleModule
 
 import logging
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_policy import (
     AlertPolicy,
+    IncidentPreference
 )
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.api import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.alert_policy import (
     AlertPolicyApi,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
@@ -137,7 +138,7 @@ class AlertPolicyModule(ModuleBase):
         policy = AlertPolicy(
             name=self.params["name"],
             account_id=self.params["account_id"],
-            incident_preference=self.params["incident_preference"],
+            incident_preference=IncidentPreference[self.params["incident_preference"]]
         )
 
         return policy
@@ -157,7 +158,7 @@ def main():
             ),
             incident_preference=dict(
                 type="str",
-                choices=["PER_POLICY", "PER_CONDITION", "PER_CONDITION_AND_TARGET"],
+                choices=[e.name for e in IncidentPreference],
                 default="PER_POLICY",
                 required=False,
             ),

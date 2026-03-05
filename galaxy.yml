@@ -27,3 +27,4 @@ repository: 'https://github.com/mikemorency/newrelic.core'
 build_ignore:
   - .venv
   - .vscode
+  - tests/integration/integration_config.yml

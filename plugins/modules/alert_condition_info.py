@@ -89,7 +89,7 @@ from ansible.module_utils.basic import AnsibleModule
 
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.api import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.alert_condition import (
     NrqlAlertConditionApi,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
@@ -110,13 +110,14 @@ class MonitorAlertQueryModule(ModuleBase):
         )
 
     def formulate_query(self):
+        entity_search_query = dict()
         if self.params["name_like"]:
-            entity_search_query = 'nameLike: "%s"' % self.params["name_like"]
+            entity_search_query['nameLike'] = self.params["name_like"]
         else:
-            entity_search_query = 'name: "%s"' % self.params["name"]
+            entity_search_query['name'] = self.params['name']
 
         if self.params["policy_id"]:
-            entity_search_query += ', policyId: "%s"' % self.params["policy_id"]
+            entity_search_query['policyId'] = self.params['policy_id']
 
         return entity_search_query
 

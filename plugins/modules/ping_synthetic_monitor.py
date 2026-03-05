@@ -118,11 +118,12 @@ monitor:
 from ansible.module_utils.basic import AnsibleModule
 
 import logging
-from ansible_collections.newrelic.core.plugins.module_utils.synthetic.api import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.synthetic import (
     SyntheticMonitorApi,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.synthetic.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.synthetic import (
     PingSyntheticMonitor,
+    MonitorPeriod
 )
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
     ModuleBase,
@@ -192,7 +193,7 @@ class PingSyntheticMonitorModule(ModuleBase):
         monitor.url = self.params["url"]
         monitor.private_locations = self.params["private_locations"]
         monitor.public_locations = self.params["public_locations"]
-        monitor.period = self.params["period"]
+        monitor.period = MonitorPeriod[self.params["period"]]
         monitor.enabled = self.params["enabled"]
         monitor.validation_string = self.params["validation_string"]
         monitor.verify_ssl = self.params["verify_ssl"]
@@ -216,17 +217,7 @@ def run_module():
                 type="str",
                 default="EVERY_15_MINUTES",
                 required=False,
-                choices=[
-                    "EVERY_MINUTE",
-                    "EVERY_5_MINUTES",
-                    "EVERY_10_MINUTES",
-                    "EVERY_15_MINUTES",
-                    "EVERY_3O_MINUTES",
-                    "EVERY_HOUR",
-                    "EVERY_6_HOURS",
-                    "EVERY_12_HOURS",
-                    "EVERY_DAY",
-                ],
+                choices=[e.name for e in MonitorPeriod]
             ),
             public_locations=dict(
                 type="list",

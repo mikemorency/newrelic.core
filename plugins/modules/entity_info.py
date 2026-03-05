@@ -12,10 +12,10 @@ __metaclass__ = type
 DOCUMENTATION = r"""
 ---
 module: entity_info
-short_description: Manages tags on a New Relic entity
+short_description: Gathers information about one or more entities
 description:
-    - Manages the tags on a New Relic entity.
-    - You can overwrite tags, append new tags, or remove tags all together.
+    - Gathers information about one or more entities in New Relic.
+    - Allows you to search by guid or by NRQL query
 
 extends_documentation_fragment:
     - newrelic.core.module_base
@@ -23,49 +23,39 @@ extends_documentation_fragment:
 options:
     guid:
         description:
-            - The GUID of the entity to manage
-        required: true
+            - The GUID of the entity for which to search
+            - guid and query are mutually exclusive
+        required: false
+        type: str
+    query:
+        description:
+            - The NRQL query to use when searching for entities
+            - guid and query are mutually exclusive
+        required: false
         type: str
 """
 
 EXAMPLES = r"""
-- name: Gather Entity Info
-  newrelic.info.entity_info:
+- name: Gather info about a single entity
+  newrelic.core.entity_info:
     api_key: NRAK-11111111111111111111111
     guid: 222222-222222222-2222222222-222222222
+    account_id: 111111
+
+- name: Query for multiple entities
+  newrelic.core.entity_info:
+    api_key: NRAK-11111111111111111111111
+    query: name LIKE 'my-monitors'
     account_id: 111111
 """
 
 RETURN = r"""
-guid:
-    description: The entity GUID
-    type: str
-    returned: on success
-    sample: 123456
-name:
-    description: The entity name
-    type: str
-    returned: on success
-    sample: some-name
-changed_tags:
-    description: Dictionary of tags that are changed. Includes their new and old values
-    type: dict
-    returned: on success
-    sample: {
-        "example": {
-            "new_values": [
-                "2",
-                "1",
-                "buzz",
-                "bizz"
-            ],
-            "old_values": [
-                "1",
-                "buzz",
-                "2"
-            ]
-        }
-    }
+entities:
+    description: A list of entities that matched the searched parameters
+    type: list
+    returned: always
+    sample: [
+    ]
 """
 from ansible.module_utils.basic import AnsibleModule
 
@@ -74,7 +64,7 @@ import logging
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
     ModuleBase,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.entity.api import EntityApi
+from ansible_collections.newrelic.core.plugins.module_utils.api.entity import EntityApi
 
 
 logger = logging.getLogger(__name__)
@@ -83,20 +73,39 @@ logger = logging.getLogger(__name__)
 class EntityInfo(ModuleBase):
     def __init__(self, module):
         super().__init__(module)
+        self.account_id = self.params['account_id']
         self.api = EntityApi(
             self.params["api_key"],
             self.params["wait_for_propegation"],
             self.params["propegation_timeout"],
         )
-        self.entity = self.api.get_entity_by_guid(self.params["guid"])
+
+    def get_entities(self):
+        if self.params['guid']:
+            entity = self.api.get_entity_by_guid_and_account_id(
+                guid=self.params['guid'],
+                account_id=self.account_id
+            )
+            return [entity] if entity else []
+
+        query_param = self.params['query']
+        if not query_param:
+            query = f"accountId = '{self.account_id}'"
+        elif 'accountId' not in query_param:
+            query = f"{query_param} AND accountId = '{self.account_id}'"
+        else:
+            query = query_param
+
+        return self.api.get_entities_by_search_query(entity_search_query=query)
 
 
 def main():
     module_args = {
         **ModuleBase.shared_argument_spec(),
         **dict(
-            guid=dict(type="str", required=True),
-        ),
+            guid=dict(type="str", required=False),
+            query=dict(type="str", required=False)
+        )
     }
 
     # seed the result dict in the object
@@ -105,11 +114,15 @@ def main():
     module = AnsibleModule(
         argument_spec=module_args,
         supports_check_mode=True,
+        mutually_exclusive=[
+            ('guid', 'query')
+        ]
     )
 
     nr_module = EntityInfo(module)
     try:
-        result["entities"] = [nr_module.entity.to_json()]
+        entities = nr_module.get_entities()
+        result["entities"] = [entity.to_json() for entity in entities]
 
     except Exception as e:
         nr_module.exit_with_exception(result, e)

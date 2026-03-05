@@ -4,7 +4,7 @@ __metaclass__ = type
 
 from ...common.utils import run_module, ModuleTestCase
 
-from ansible_collections.newrelic.core.plugins.module_utils.entity.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.entity import (
     Entity,
     EntityTags,
 )

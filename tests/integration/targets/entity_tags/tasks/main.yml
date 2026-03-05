@@ -1,4 +1,8 @@
 ---
+- name: Include Integration Config
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../integration_config.yml"
+
 - name: Test
   environment:
     NR_API_KEY: "{{ integration_config_nr_api_key }}"
@@ -12,6 +16,7 @@
       register: _ping_synth
     - name: Add Tags
       newrelic.core.entity_tags:
+        propegation_timeout: 30
         guid: "{{ _ping_synth.monitor.guid }}"
         tags:
           one: [1, one]
@@ -41,6 +46,7 @@
 
     - name: Update Tags
       newrelic.core.entity_tags:
+        propegation_timeout: 30
         guid: "{{ _ping_synth.monitor.guid }}"
         tags:
           two: [a]
@@ -66,6 +72,7 @@
 
     - name: Replace Tags
       newrelic.core.entity_tags:
+        propegation_timeout: 30
         guid: "{{ _ping_synth.monitor.guid }}"
         append: false
         tags:
@@ -78,6 +85,9 @@
         tags:
           two: [b]
       register: _replace_idem
+    - name: Sleep
+      ansible.builin.pause:
+        seconds: 30
     - name: Get Entity Info
       newrelic.core.entity_info:
         guid: "{{ _ping_synth.monitor.guid }}"
@@ -93,6 +103,7 @@
 
     - name: Remove Tags
       newrelic.core.entity_tags:
+        propegation_timeout: 30
         guid: "{{ _ping_synth.monitor.guid }}"
         state: absent
         tags:

@@ -1,11 +1,14 @@
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.objects import (
-    NrqlAlertConditionBase,
-    NrqlStaticAlertCondition,
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.alert_condition import (
+    NrqlBaseClassAlertConditionQueries,
+    NrqlStaticAlertAlertConditionQueries
 )
-from ansible_collections.newrelic.core.plugins.module_utils.nerdgraph_api_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphApiBase,
+)
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_condition import (
+    NrqlAlertConditionBase,
 )
 
 
@@ -28,7 +31,7 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
     def get_condition_by_name_policy_and_account(self, name, policy_id, account_id):
         existing_conditions, _ = (  # pylint: disable=disallowed-name
             self.get_conditions_from_query(
-                entity_search_query='name: "%s", policyId: "%s"' % (name, policy_id),
+                entity_search_query=dict(name=name, policyId=policy_id),
                 account_id=account_id,
             )
         )
@@ -40,16 +43,13 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
             raise Exception("Multiple alert conditions matched name query....")
 
     def get_conditions_from_query(
-        self, entity_search_query: str, account_id: str, cursor: str = ""
+        self, entity_search_query: dict, account_id: str, cursor: str = ""
     ) -> list:
         logger.info("Getting conditions from search '%s'", entity_search_query)
-        query_template = self.jinja_env.from_string(
-            NrqlAlertConditionBase.J2_SEARCH_QUERY
-        )
-        query = query_template.render(
-            entity_search_query=entity_search_query,
+        query = NrqlBaseClassAlertConditionQueries.condition_search(
             account_id=account_id,
-            cursor=cursor,
+            search_query=entity_search_query,
+            cursor=cursor
         )
         r = self.run_query(query=query)
         try:
@@ -80,22 +80,17 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
             condition.name,
             condition.id,
         )
-        query_template = self.jinja_env.from_string(
-            NrqlAlertConditionBase.J2_DELETE_QUERY
+        r = self.run_query(
+            query=NrqlBaseClassAlertConditionQueries.delete(condition=condition)
         )
-        query = query_template.render(condition=condition)
-        r = self.run_query(query=query)
         return r["data"]["alertsConditionDelete"]["id"]
 
     def create_condition(self, condition: NrqlAlertConditionBase):
         condition.validate_properties()
         if condition.entity_type == "STATIC":
-            query_template = self.jinja_env.from_string(
-                NrqlStaticAlertCondition.J2_CREATE_QUERY
-            )
+            query = NrqlStaticAlertAlertConditionQueries.create(condition=condition)
         else:
             raise Exception("Unknown condition type %s" % condition.entity_type)
-        query = query_template.render(condition=condition)
         r = self.run_query(query=query)
         logger.debug(r)
         condition.id = r["data"]["alertsNrqlConditionStaticCreate"]["id"]
@@ -104,12 +99,9 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
     def update_condition(self, condition: NrqlAlertConditionBase):
         condition.validate_properties()
         if condition.entity_type == "STATIC":
-            query_template = self.jinja_env.from_string(
-                NrqlStaticAlertCondition.J2_UPDATE_QUERY
-            )
+            query = NrqlStaticAlertAlertConditionQueries.update(condition=condition)
         else:
             raise Exception("Unknown condition type %s" % condition.entity_type)
-        query = query_template.render(condition=condition)
         r = self.run_query(query=query)
         logger.debug(r)
         condition.id = r["data"]["alertsNrqlConditionStaticUpdate"]["id"]

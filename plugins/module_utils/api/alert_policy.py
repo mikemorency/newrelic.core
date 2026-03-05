@@ -1,10 +1,13 @@
 import logging
 import time
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.alert_policy import (
+    AlertPolicyQueries
+)
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_policy import (
     AlertPolicy,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.nerdgraph_api_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphApiBase,
 )
 
@@ -28,7 +31,7 @@ class AlertPolicyApi(NerdGraphApiBase):
     def get_policy_by_name_and_account(self, name, account_id):
         existing_policies, _ = (  # pylint: disable=disallowed-name
             self.get_policies_from_query(
-                entity_search_query='name: "%s"' % name, account_id=account_id
+                entity_search_query=dict(name=name), account_id=account_id
             )
         )
         if len(existing_policies) == 1:
@@ -39,12 +42,11 @@ class AlertPolicyApi(NerdGraphApiBase):
             raise Exception("Multiple policies matched name query....")
 
     def get_policies_from_query(
-        self, entity_search_query: str, account_id: str, cursor: str = ""
+        self, entity_search_query: dict, account_id: str, cursor: str = ""
     ) -> list:
         logger.info("Getting policies from search '%s'", entity_search_query)
-        query_template = self.jinja_env.from_string(AlertPolicy.J2_SEARCH_QUERY)
-        query = query_template.render(
-            entity_search_query=entity_search_query,
+        query = AlertPolicyQueries.policy_search(
+            search_query=entity_search_query,
             account_id=account_id,
             cursor=cursor,
         )
@@ -71,8 +73,7 @@ class AlertPolicyApi(NerdGraphApiBase):
 
     def create_policy(self, alert_policy: AlertPolicy):
         logger.info("Creating alert policy %s", alert_policy.name)
-        query_template = self.jinja_env.from_string(AlertPolicy.J2_CREATE_QUERY)
-        query = query_template.render(alert_policy=alert_policy)
+        query = AlertPolicyQueries.create(policy=alert_policy)
         r = self.run_query(query=query)
         logger.debug(r)
         alert_policy.id = r["data"]["alertsPolicyCreate"]["id"]
@@ -80,8 +81,7 @@ class AlertPolicyApi(NerdGraphApiBase):
 
     def update_policy(self, alert_policy: AlertPolicy):
         logger.info("Updating policy %s", alert_policy.name)
-        query_template = self.jinja_env.from_string(alert_policy.J2_UPDATE_QUERY)
-        query = query_template.render(alert_policy=alert_policy)
+        query = AlertPolicyQueries.update(policy=alert_policy)
         self.run_query(query=query)
 
     def delete_policy(self, alert_policy: AlertPolicy) -> str:
@@ -90,8 +90,7 @@ class AlertPolicyApi(NerdGraphApiBase):
             alert_policy.name,
             alert_policy.id,
         )
-        query_template = self.jinja_env.from_string(alert_policy.J2_DELETE_QUERY)
-        query = query_template.render(alert_policy=alert_policy)
+        query = AlertPolicyQueries.delete(policy=alert_policy)
         r = self.run_query(query=query)
         logger.debug(r)
         return r["data"]["alertsPolicyDelete"]["id"]

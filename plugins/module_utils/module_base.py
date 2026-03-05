@@ -2,7 +2,7 @@ import logging
 from io import StringIO
 from ansible.module_utils.basic import env_fallback
 
-from ansible_collections.newrelic.core.plugins.module_utils.nerdgraph_api_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphQueryError,
 )
 
@@ -102,3 +102,17 @@ class ModuleBase:
                 result[k] = v.to_json()
         self._logger.write_streams(result)
         self.module.exit_json(**result)
+
+
+class ChangeTrackingModuleBase(ModuleBase):
+    def __init__(self, module):
+        super().__init__(module)
+
+    @staticmethod
+    def shared_argument_spec():
+        spec = ModuleBase.shared_argument_spec()
+        del spec["account_id"]
+        del spec["wait_for_propegation"]
+        del spec["propegation_timeout"]
+        spec["entity_guids"] = dict(type="list", elements="str", required=True)
+        return spec

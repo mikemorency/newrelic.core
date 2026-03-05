@@ -1,25 +1,48 @@
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.query_templates import (
-    NrqlBaseClassAlertConditionTemplates,
-    NrqlStaticAlertConditionTemplates,
-)
-from ansible_collections.newrelic.core.plugins.module_utils.entity.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.entity import (
     Entity,
 )
-
+from ansible_collections.newrelic.core.plugins.module_utils.models.nr_object_base import (
+    NrStringEnum
+)
 
 logger = logging.getLogger(__name__)
+
+
+class IncidentPriority(NrStringEnum):
+    CRITICAL = "CRITICAL"
+    WARNING = "WARNING"
+
+
+class IncidentOperator(NrStringEnum):
+    ABOVE = "ABOVE"
+    BELOW = "BELOW"
+    ABOVE_OR_EQUALS = "ABOVE_OR_EQUALS"
+    BELOW_OR_EQUALS = "BELOW_OR_EQUALS"
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+
+
+class IncidentOccurences(NrStringEnum):
+    AT_LEAST_ONCE = "AT_LEAST_ONCE"
+    ALL = "ALL"
+
+
+class DataAggregationMethod(NrStringEnum):
+    EVENT_TIMER = "EVENT_TIMER"
+    EVENT_FLOW = "EVENT_FLOW"
+    CADENCE = "CADENCE"
 
 
 class IncidentTerm:
     def __init__(
         self,
         threshold: int,
-        priority: str,
-        operator: str,
+        priority: IncidentPriority,
+        operator: IncidentOperator,
         duration: int,
-        occurrences: str,
+        occurrences: IncidentOccurences,
     ):
         self.threshold = int(threshold)
         self.priority = priority
@@ -31,10 +54,10 @@ class IncidentTerm:
     def from_api_data(cls, data):
         obj = cls(
             threshold=data["threshold"],
-            priority=data["priority"],
-            operator=data["operator"],
+            priority=IncidentPriority[data["priority"]],
+            operator=IncidentOperator[data["operator"]],
             duration=data["thresholdDuration"],
-            occurrences=data.get("thresholdOccurrences"),
+            occurrences=IncidentOccurences[data.get("thresholdOccurrences")],
         )
 
         return obj
@@ -45,26 +68,11 @@ class IncidentTerm:
         else:
             return False
 
-    @property
-    def priority(self):
-        return self._priority
-
-    @priority.setter
-    def priority(self, new_val):
-        if new_val not in ["WARNING", "CRITICAL"]:
-            raise Exception(
-                "Priority must be either WARNING or CRITICAL, got %s" % new_val
-            )
-        self._priority = new_val
-
     def to_json(self):
         return self.__dict__
 
 
 class NrqlAlertConditionBase(Entity):
-    J2_SEARCH_QUERY = NrqlBaseClassAlertConditionTemplates.j2_get_from_search()
-    J2_DELETE_QUERY = NrqlBaseClassAlertConditionTemplates.j2_delete()
-
     def __init__(
         self,
         name: str,
@@ -98,9 +106,6 @@ class NrqlAlertConditionBase(Entity):
 
 
 class NrqlStaticAlertCondition(NrqlAlertConditionBase):
-    J2_CREATE_QUERY = NrqlStaticAlertConditionTemplates.j2_create()
-    J2_UPDATE_QUERY = NrqlStaticAlertConditionTemplates.j2_update()
-
     def __init__(self, name: str, account_id: str, policy_id: str, id: str = None):
         super().__init__(name=name, account_id=account_id, policy_id=policy_id, id=id)
         self.entity_type = "STATIC"
@@ -113,6 +118,7 @@ class NrqlStaticAlertCondition(NrqlAlertConditionBase):
         self.data_aggregation_timer = None
         self.data_aggregation_delay = None
         self.data_slide_by = None
+        self.evaluation_delay = None
 
         self._equality_attrs.update(
             [
@@ -129,7 +135,7 @@ class NrqlStaticAlertCondition(NrqlAlertConditionBase):
 
     def validate_properties(self):
         if (
-            self.data_aggregation_method == "EVENT_FLOW"
+            self.data_aggregation_method is DataAggregationMethod.EVENT_FLOW
             and self.data_aggregation_window
         ):
             for term in self.incident_terms:
@@ -154,7 +160,7 @@ class NrqlStaticAlertCondition(NrqlAlertConditionBase):
         obj.description = data.get("description")
         obj.runbook_url = data.get("runbookUrl")
         obj.data_aggregation_window = data.get("signal")["aggregationWindow"]
-        obj.data_aggregation_method = data.get("signal")["aggregationMethod"]
+        obj.data_aggregation_method = DataAggregationMethod[data.get("signal")["aggregationMethod"]]
         obj.data_aggregation_timer = data.get("signal")["aggregationTimer"]
         obj.data_aggregation_delay = data.get("signal")["aggregationDelay"]
         obj.data_slide_by = data.get("signal")["slideBy"]

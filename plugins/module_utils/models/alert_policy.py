@@ -1,26 +1,26 @@
+from enum import Enum
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.query_templates import (
-    AlertPolicyTemplates,
-)
-from ansible_collections.newrelic.core.plugins.module_utils.nr_object_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.nr_object_base import (
     NrObjectBase,
+    NrStringEnum
 )
 
 
 logger = logging.getLogger(__name__)
 
 
-class AlertPolicy(NrObjectBase):
-    J2_SEARCH_QUERY = AlertPolicyTemplates.j2_get_from_search()
-    J2_DELETE_QUERY = AlertPolicyTemplates.j2_delete()
-    J2_CREATE_QUERY = AlertPolicyTemplates.j2_create()
-    J2_UPDATE_QUERY = AlertPolicyTemplates.j2_update()
+class IncidentPreference(NrStringEnum):
+    PER_POLICY = "PER_POLICY"
+    PER_CONDITION = "PER_CONDITION"
+    PER_CONDITION_AND_TARGET = "PER_CONDITION_AND_TARGET"
 
+
+class AlertPolicy(NrObjectBase):
     def __init__(
         self,
         name: str,
-        incident_preference: str,
+        incident_preference: IncidentPreference,
         account_id: str,
         id: str = None,
     ):
@@ -34,7 +34,7 @@ class AlertPolicy(NrObjectBase):
         obj = cls(
             name=data["name"],
             account_id=data["accountId"],
-            incident_preference=data["incidentPreference"],
+            incident_preference=IncidentPreference[data["incidentPreference"]],
             id=data["id"],
         )
 

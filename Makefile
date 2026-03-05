@@ -18,4 +18,7 @@ units: install-collection
 .PHONY: integration
 integration: install-collection
 	cd $(collection_path); \
-	ANSIBLE_ROLES_PATH="./tests/integration/targets/" ansible-test integration --docker default --color yes --verbose $(TARGET)
+	./tests/integration/generate_integration_config.sh; \
+	ANSIBLE_ROLES_PATH=./tests/integration/targets \
+	ANSIBLE_COLLECTIONS_PATH=$(collection_path)/../.. \
+	ansible-test integration --color yes -vvvv $(TARGET)

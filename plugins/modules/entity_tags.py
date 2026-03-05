@@ -20,6 +20,11 @@ description:
 extends_documentation_fragment:
     - newrelic.core.module_base
 
+notes:
+    - Entity tags can take longer to propegate in the API than other types of changes. If you are making multiple changes,
+      or need results to be visible in New Relic immediately after the module exits, consider increasing the default
+      value for propegation time parameter.
+
 options:
     guid:
         description:
@@ -131,11 +136,14 @@ import time
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
     ModuleBase,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.entity.api import EntityApi
-from ansible_collections.newrelic.core.plugins.module_utils.entity.query_templates import (
-    EntityQueryTemplates,
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.entity import (
+    EntityQueries
 )
-from ansible_collections.newrelic.core.plugins.module_utils.entity.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
+    NerdGraphQueryError
+)
+from ansible_collections.newrelic.core.plugins.module_utils.api.entity import EntityApi
+from ansible_collections.newrelic.core.plugins.module_utils.models.entity import (
     EntityTags,
 )
 
@@ -150,8 +158,18 @@ class EntityTagModule(ModuleBase):
             self.params["wait_for_propegation"],
             self.params["propegation_timeout"],
         )
-        self.entity = self.api.get_entity_by_guid(self.params["guid"])
+        self._entity = None
         self.param_tags = EntityTags(self.params["tags"])
+
+    @property
+    def entity(self):
+        if not self._entity:
+            self._entity = self.api.get_entity_by_guid_and_account_id(
+            guid=self.params["guid"],
+            account_id=self.params["account_id"]
+        )
+
+        return self._entity
 
     def get_tags_to_remove(self):
         logging.info("Calculating the tags the need keys or values removed.")
@@ -198,11 +216,8 @@ class EntityTagModule(ModuleBase):
         tags_to_replace = tag_changes[1]
         if not self.params["append"]:
             self.remove_tags((tags_to_replace, []))
-        query_template = self.api.jinja_env.from_string(
-            EntityQueryTemplates.j2_add_or_update_tags()
-        )
-        query = query_template.render(
-            guid=self.entity.guid, tags=tags_to_update.merge(tags_to_replace)
+        query = EntityQueries.add_or_update_tags(
+            guid=self.entity.guid, entity_tags=tags_to_update.merge(tags_to_replace)
         )
         self.__run_query_with_error_catch(
             query=query, error_key="taggingAddTagsToEntity"
@@ -217,10 +232,7 @@ class EntityTagModule(ModuleBase):
                 "Removing any tags with the following keys from entity: %s.",
                 removed_key_names,
             )
-            query_template = self.api.jinja_env.from_string(
-                EntityQueryTemplates.j2_remove_tags_by_keys()
-            )
-            query = query_template.render(
+            query = EntityQueries.remove_tags_by_keys(
                 guid=self.entity.guid, tag_names=removed_key_names
             )
             self.__run_query_with_error_catch(
@@ -229,16 +241,12 @@ class EntityTagModule(ModuleBase):
 
         if len(removed_values) > 0:
             logger.info("Removing specific values from entity: %s.", removed_values)
-            query_template = self.api.jinja_env.from_string(
-                EntityQueryTemplates.j2_remove_tag_values()
-            )
-            query = query_template.render(guid=self.entity.guid, tags=removed_values)
+            query = EntityQueries.remove_tag_values(guid=self.entity.guid, entity_tags=removed_values)
             self.__run_query_with_error_catch(
                 query=query, error_key="taggingDeleteTagValuesFromEntity"
             )
 
     def __run_query_with_error_catch(self, query, error_key):
-        logger.debug("query=%s", "".join(query.split()))
         r = self.api.run_query(query=query)
         try:
             errors = r["data"][error_key]["errors"]
@@ -248,14 +256,17 @@ class EntityTagModule(ModuleBase):
             raise Exception("Query response did not match excepted format")
 
         if errors:
-            raise Exception(errors)
+            raise NerdGraphQueryError(
+                response=r,
+                query=query
+            )
 
-    def _wait_for_tag_changes(self, changed: EntityTags):
+    def _wait_for_tag_changes(self, changed: EntityTags, final_check: bool = False):
         """
         Changes take time to propagate in NR, so this will wait until the
         change can be seen in the API before continuing.
         At the end of the loop there's another small pause, since the change may only be
-        partially propagated but we can't really check any further.
+        partially propegated but we can't really check any further.
         """
         _time_increment = 3
         if not self.api.wait_for_propegation:
@@ -264,7 +275,10 @@ class EntityTagModule(ModuleBase):
         while _time < self.api.propegation_timeout:
             time.sleep(_time_increment)
             _time += _time_increment
-            remote_entity_def = self.api.get_entity_by_guid(self.params["guid"])
+            remote_entity_def = self.api.get_entity_by_guid_and_account_id(
+                guid=self.params["guid"],
+                account_id=self.params["account_id"]
+            )
             for tag in changed:
                 if (
                     remote_entity_def.tags.contains_tag(tag)
@@ -278,11 +292,13 @@ class EntityTagModule(ModuleBase):
                 break
         else:
             raise Exception(
-                "Timedout waiting for new tags to be shown in New Relic API"
+                f"Timedout waiting for new tags to be shown in New Relic API. {final_check}"
             )
 
         # wait one more time because the nr api really does mess with you sometimes
-        time.sleep(_time_increment)
+        if not final_check:
+            self._wait_for_tag_changes(changed=changed, final_check=True)
+        #time.sleep(_time_increment)
 
 
 def main():
@@ -305,6 +321,7 @@ def main():
     )
 
     nr_module = EntityTagModule(module)
+
     try:
         result["name"] = nr_module.entity.name
         result["guid"] = nr_module.entity.guid

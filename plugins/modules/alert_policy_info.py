@@ -64,7 +64,7 @@ policies:
 from ansible.module_utils.basic import AnsibleModule
 
 import logging
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.api import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.alert_policy import (
     AlertPolicyApi,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
@@ -88,12 +88,12 @@ class AlertPolicyInfoModule(ModuleBase):
 
     def get_policies_by_name_like(self):
         policies, next_cursor = self.api.get_policies_from_query(
-            entity_search_query='nameLike: "%s"' % self.params["name_like"],
+            entity_search_query=dict(nameLike=self.params["name_like"]),
             account_id=self.params["account_id"],
         )
         while next_cursor:
             _policies, next_cursor = self.api.get_policies_from_query(
-                entity_search_query='nameLike: "%s"' % self.params["name_like"],
+                entity_search_query=dict(nameLike=self.params["name_like"]),
                 account_id=self.params["account_id"],
                 cursor=next_cursor,
             )
@@ -102,11 +102,11 @@ class AlertPolicyInfoModule(ModuleBase):
 
     def get_all_policies(self):
         policies, next_cursor = self.api.get_policies_from_query(
-            entity_search_query="", account_id=self.params["account_id"]
+            entity_search_query=dict(), account_id=self.params["account_id"]
         )
         while next_cursor:
             _policies, next_cursor = self.api.get_policies_from_query(
-                entity_search_query="",
+                entity_search_query=dict(),
                 account_id=self.params["account_id"],
                 cursor=next_cursor,
             )

@@ -1,8 +1,12 @@
 ---
+- name: Include Integration Config
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../integration_config.yml"
+
 - name: Test
   environment:
-    NR_API_KEY: "{{ integration_config_nr_api_key }}"
-    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id }}"
+    NR_API_KEY: "{{ integration_config_nr_api_key | mandatory }}"
+    NR_ACCOUNT_ID: "{{ integration_config_nr_account_id | mandatory }}"
     NR_LOG_LEVEL: "{{ integration_config_nr_log_level }}"
   block:
     - name: Create Test Alert Policy

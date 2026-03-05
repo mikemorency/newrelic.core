@@ -4,17 +4,15 @@ import re
 import time
 import random
 
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.query import (
+    GraphQLQuery
+)
+
 MISSING_IMPORTS = set()
 try:
     import requests
 except ImportError:
     MISSING_IMPORTS.add("requests")
-
-try:
-    from jinja2 import Environment
-    from jinja2 import BaseLoader
-except ImportError:
-    MISSING_IMPORTS.add("jinja2")
 
 
 logger = logging.getLogger(__name__)
@@ -33,18 +31,17 @@ class NerdGraphApiBase:
             )
         self.default_headers = {"Api-Key": api_key}
         self.api_base_url = "https://api.newrelic.com/graphql"
-        self.jinja_env = Environment(loader=BaseLoader)
         self.wait_for_propegation = wait_for_propegation
         self.propegation_timeout = propegation_timeout
 
-    def run_query(self, query: str):
+    def run_query(self, query: GraphQLQuery):
         try:
             r = requests.post(
                 url=self.api_base_url,
                 headers=dict(
                     self.default_headers, **{"Content-type": "application/json"}
                 ),
-                data=json.dumps({"query": query}),
+                data=json.dumps({"query": query.to_gql_string()}),
             )
             self.handle_query_errors(r, query)
         except NerdGraphRateLimitError as e:
@@ -57,13 +54,13 @@ class NerdGraphApiBase:
                 headers=dict(
                     self.default_headers, **{"Content-type": "application/json"}
                 ),
-                data=json.dumps({"query": query}),
+                data=json.dumps({"query": query.to_gql_string()}),
             )
             self.handle_query_errors(r, query)
 
         return r.json()
 
-    def handle_query_errors(self, response, query):
+    def handle_query_errors(self, response, query: GraphQLQuery):
         response.raise_for_status()
         response = response.json()
         errors = response.get("errors", [])
@@ -84,18 +81,18 @@ class NerdGraphApiBase:
 
 
 class NerdGraphQueryError(Exception):
-    def __init__(self, response, query, msg: str = None):
+    def __init__(self, response, query: GraphQLQuery, msg: str = None):
         if not msg:
             msg = "An error was returned while executing a query"
         super().__init__(msg)
         self.response = response
-        self.query = re.sub(" +", " ", query)
-        self.query = re.sub("\n", "", self.query)
+        self.query = query
 
     def to_json(self):
         return {
             "response": self.response,
             "query": self.query,
+            "query_graphql_string": self.query.to_gql_string()
         }
 
 

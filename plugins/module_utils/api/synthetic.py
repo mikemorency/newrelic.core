@@ -1,12 +1,16 @@
 import logging
 import time
 
-from ansible_collections.newrelic.core.plugins.module_utils.synthetic.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.synthetic import (
     SyntheticMonitorBase,
     PingSyntheticMonitor,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.nerdgraph_api_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphApiBase,
+)
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.synthetic import (
+    SyntheticMonitorBaseClassQueries,
+    PingSyntheticMonitorQueries
 )
 
 
@@ -41,8 +45,7 @@ class SyntheticMonitorApi(NerdGraphApiBase):
         existing_monitors, _ = (  # pylint: disable=disallowed-name
             self.get_monitors_from_query(
                 entity_search_query="domain = 'SYNTH' AND type = 'MONITOR' AND name = '%s'"
-                % name,
-                account_id=account_id,
+                % name
             )
         )
 
@@ -54,15 +57,11 @@ class SyntheticMonitorApi(NerdGraphApiBase):
             raise Exception("Multiple synthetic monitors matched name query....")
 
     def get_monitors_from_query(
-        self, entity_search_query: str, account_id: str, cursor: str = ""
+        self, entity_search_query: str, cursor: str = ""
     ) -> list:
         logger.info("Getting monitors from search '%s'", entity_search_query)
-        query_template = self.jinja_env.from_string(
-            SyntheticMonitorBase.J2_SEARCH_QUERY
-        )
-        query = query_template.render(
+        query = SyntheticMonitorBaseClassQueries.monitor_search(
             entity_search_query=entity_search_query,
-            account_id=account_id,
             cursor=cursor,
         )
         r = self.run_query(query=query)
@@ -92,16 +91,14 @@ class SyntheticMonitorApi(NerdGraphApiBase):
         logger.info(
             "Deleting synthetic monitor %s with GUID %s", monitor.name, monitor.guid
         )
-        query_template = self.jinja_env.from_string(monitor.J2_DELETE_QUERY)
-        query = query_template.render(monitor=monitor)
+        query = SyntheticMonitorBaseClassQueries.delete(monitor=monitor)
         r = self.run_query(query=query)
         self.__wait_for_monitor_to_not_exist(monitor=monitor)
         return r["data"]["syntheticsDeleteMonitor"]["deletedGuid"]
 
     def create_monitor(self, monitor: SyntheticMonitorBase):
         logger.info("Creating synthetic monitor %s", monitor.name)
-        query_template = self.jinja_env.from_string(monitor.J2_CREATE_QUERY)
-        query = query_template.render(monitor=monitor)
+        query = PingSyntheticMonitorQueries.create(monitor=monitor)
         r = self.run_query(query=query)
         logger.debug(r)
         self.raise_for_errors(
@@ -119,8 +116,7 @@ class SyntheticMonitorApi(NerdGraphApiBase):
         logger.info(
             "Updating synthetic monitor %s with GUID %s", monitor.name, monitor.guid
         )
-        query_template = self.jinja_env.from_string(monitor.J2_UPDATE_QUERY)
-        query = query_template.render(monitor=monitor)
+        query = PingSyntheticMonitorQueries.update(monitor=monitor)
         r = self.run_query(query=query)
         logger.debug(r)
         monitor.guid = r["data"]["syntheticsUpdateSimpleBrowserMonitor"]["monitor"][

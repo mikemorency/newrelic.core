@@ -1,4 +1,8 @@
 ---
+- name: Include Integration Config
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../integration_config.yml"
+
 - name: Test
   environment:
     NR_API_KEY: "{{ integration_config_nr_api_key }}"

@@ -1,6 +1,6 @@
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.nr_object_base import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.nr_object_base import (
     NrObjectBase,
 )
 

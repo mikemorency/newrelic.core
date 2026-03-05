@@ -154,11 +154,15 @@ import logging
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
     ModuleBase,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_condition import (
     NrqlStaticAlertCondition,
     IncidentTerm,
+    IncidentOccurences,
+    IncidentOperator,
+    IncidentPriority,
+    DataAggregationMethod
 )
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.api import (
+from ansible_collections.newrelic.core.plugins.module_utils.api.alert_condition import (
     NrqlAlertConditionApi,
 )
 
@@ -231,32 +235,32 @@ class SyntheticMonitorAlertConditionModule(ModuleBase):
         )
         _cond.runbook_url = self.params["runbook_url"]
         _cond.data_aggregation_window = self.params["data_aggregation_window"]
-        _cond.data_aggregation_method = self.params["data_aggregation_method"]
+        _cond.data_aggregation_method = DataAggregationMethod[self.params["data_aggregation_method"]]
         _cond.data_aggregation_timer = self.params["data_aggregation_timer"]
         _cond.data_aggregation_delay = self.params["data_aggregation_delay"]
         _cond.signal_slide_by = None
         if self.params["critical_incident"]:
             _cond.incident_terms.append(
                 IncidentTerm(
-                    priority="CRITICAL",
+                    priority=IncidentPriority.CRITICAL,
                     threshold=self.params["critical_incident"][
                         "failed_locations_threshold"
                     ],
-                    operator="ABOVE_OR_EQUALS",
+                    operator=IncidentOperator.ABOVE_OR_EQUALS,
                     duration=self.params["critical_incident"]["duration"],
-                    occurrences="AT_LEAST_ONCE",
+                    occurrences=IncidentOccurences.AT_LEAST_ONCE,
                 )
             )
         if self.params["warning_incident"]:
             _cond.incident_terms.append(
                 IncidentTerm(
-                    priority="WARNING",
+                    priority=IncidentPriority.WARNING,
                     threshold=self.params["warning_incident"][
                         "failed_locations_threshold"
                     ],
-                    operator="ABOVE_OR_EQUALS",
+                    operator=IncidentOperator.ABOVE_OR_EQUALS,
                     duration=self.params["warning_incident"]["duration"],
-                    occurrences="AT_LEAST_ONCE",
+                    occurrences=IncidentOccurences.AT_LEAST_ONCE,
                 )
             )
 
@@ -276,7 +280,7 @@ def main():
             enabled=dict(type="bool", default=True, required=False),
             data_aggregation_delay=dict(type="int", default=120),
             data_aggregation_window=dict(type="int", default=600),
-            data_aggregation_method=dict(type="str", default="EVENT_FLOW"),
+            data_aggregation_method=dict(type="str", default="EVENT_FLOW", choices=[e.name for e in DataAggregationMethod]),
             data_aggregation_timer=dict(type="int", required=False),
             critical_incident=dict(
                 type="dict",

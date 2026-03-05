@@ -1,20 +1,49 @@
 import logging
 
-from ansible_collections.newrelic.core.plugins.module_utils.entity.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.entity import (
     Entity,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.synthetic.query_templates import (
-    SyntheticMonitorBaseClassTemplates,
-    PingSyntheticMonitorTemplates,
+from ansible_collections.newrelic.core.plugins.module_utils.models.nr_object_base import (
+    NrStringEnum
 )
 
 
 logger = logging.getLogger(__name__)
 
 
+class MonitorPeriod(NrStringEnum):
+    EVERY_MINUTE = "EVERY_MINUTE"
+    EVERY_5_MINUTES = "EVERY_5_MINUTES"
+    EVERY_10_MINUTES = "EVERY_10_MINUTES"
+    EVERY_15_MINUTES = "EVERY_15_MINUTES"
+    EVERY_30_MINUTES = "EVERY_30_MINUTES"
+    EVERY_HOUR = "EVERY_HOUR"
+    EVERY_6_HOURS = "EVERY_6_HOURS"
+    EVERY_12_HOURS = "EVERY_12_HOURS"
+    EVERY_DAY = "EVERY_DAY"
+
+    @classmethod
+    def from_minutes(cls, minutes):
+        try:
+            p = int(minutes)
+        except ValueError:
+            raise Exception(
+                "Minutes value should be an int when converting to MonitorPeriod. Got %s" % minutes
+            )
+
+        if p == 1:
+            return MonitorPeriod.EVERY_MINUTE
+        if p < 60:
+            return MonitorPeriod["EVERY_%s_MINUTES" % p]
+        if p == 60:
+            return MonitorPeriod.EVERY_HOUR
+        if p == 1440:
+            return MonitorPeriod.EVERY_DAY
+
+        return MonitorPeriod["EVERY_%s_HOURS" % int(p / 60)]
+
+
 class SyntheticMonitorBase(Entity):
-    J2_SEARCH_QUERY = SyntheticMonitorBaseClassTemplates.j2_get_from_search()
-    J2_DELETE_QUERY = SyntheticMonitorBaseClassTemplates.j2_delete()
     PUBLIC_LOCATION_NAMES_TO_IDS = {
         "San Francisco, CA, USA": "AWS_US_WEST_1",
         "Washington, DC, USA": "AWS_US_EAST_1",
@@ -41,33 +70,13 @@ class SyntheticMonitorBase(Entity):
         self.entity_type = "MONITOR"
         self.monitor_type = None
         self.url = ""
-        self.period = ""
+        self.period = None
         self.id = id
         self.public_locations = []
         self.private_locations = []
         self.enabled = False
         self.validation_string = None
         self.verify_ssl = False
-
-    @staticmethod
-    def period_value_to_id(period):
-        try:
-            p = int(period)
-        except ValueError:
-            raise Exception(
-                "Period value should be an int when converting to ID. Got %s" % period
-            )
-
-        if p == 1:
-            return "EVERY_MINUTE"
-        if p < 60:
-            return "EVERY_%s_MINUTES" % p
-        if p == 60:
-            return "EVERY_HOUR"
-        if p == 1440:
-            return "EVERY_DAY"
-
-        return "EVERY_%s_HOURS" % int(p / 60)
 
     @classmethod
     def from_api_data(cls, data):
@@ -80,7 +89,7 @@ class SyntheticMonitorBase(Entity):
         logger.debug(
             "Creating monitor from api data and got period of %s", data["period"]
         )
-        obj.period = SyntheticMonitorBase.period_value_to_id(data["period"])
+        obj.period = MonitorPeriod.from_minutes(data["period"])
 
         for tag in data["tags"]:
             if tag["key"] == "privateLocation":
@@ -121,8 +130,6 @@ class SyntheticMonitorBase(Entity):
 
 class PingSyntheticMonitor(SyntheticMonitorBase):
     MONITOR_TYPE = "SIMPLE"
-    J2_CREATE_QUERY = PingSyntheticMonitorTemplates.j2_create()
-    J2_UPDATE_QUERY = PingSyntheticMonitorTemplates.j2_update()
 
     def __init__(self, name: str, account_id: str):
         super().__init__(name, account_id)

@@ -44,6 +44,6 @@ options:
             - The maximum number of seconds to wait for a change to be fully reflected in the
               New Relic API.
             - Only used if `wait_for_propegation` is true.
-        default: 15
+        default: 30
         type: int
 """

@@ -73,7 +73,7 @@ logger = logging.getLogger(__name__)
 class EntityInfo(ModuleBase):
     def __init__(self, module):
         super().__init__(module)
-        self.account_id = self.params['account_id']
+        self.account_id = self.params["account_id"]
         self.api = EntityApi(
             self.params["api_key"],
             self.params["wait_for_propegation"],
@@ -81,17 +81,16 @@ class EntityInfo(ModuleBase):
         )
 
     def get_entities(self):
-        if self.params['guid']:
+        if self.params["guid"]:
             entity = self.api.get_entity_by_guid_and_account_id(
-                guid=self.params['guid'],
-                account_id=self.account_id
+                guid=self.params["guid"], account_id=self.account_id
             )
             return [entity] if entity else []
 
-        query_param = self.params['query']
+        query_param = self.params["query"]
         if not query_param:
             query = f"accountId = '{self.account_id}'"
-        elif 'accountId' not in query_param:
+        elif "accountId" not in query_param:
             query = f"{query_param} AND accountId = '{self.account_id}'"
         else:
             query = query_param
@@ -104,8 +103,8 @@ def main():
         **ModuleBase.shared_argument_spec(),
         **dict(
             guid=dict(type="str", required=False),
-            query=dict(type="str", required=False)
-        )
+            query=dict(type="str", required=False),
+        ),
     }
 
     # seed the result dict in the object
@@ -114,9 +113,7 @@ def main():
     module = AnsibleModule(
         argument_spec=module_args,
         supports_check_mode=True,
-        mutually_exclusive=[
-            ('guid', 'query')
-        ]
+        mutually_exclusive=[("guid", "query")],
     )
 
     nr_module = EntityInfo(module)

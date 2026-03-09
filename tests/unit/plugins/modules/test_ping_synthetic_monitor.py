@@ -7,7 +7,7 @@ from ...common.utils import run_module, ModuleTestCase
 from ansible_collections.newrelic.core.plugins.modules.ping_synthetic_monitor import (
     main as module_main,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.synthetic.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.synthetic import (
     PingSyntheticMonitor,
 )
 

@@ -1,0 +1,72 @@
+---
+- name: Test
+  block:
+    - name: Create Test Cert Monitor
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        domain: "example.com"
+        period: EVERY_DAY
+      register: _cert_synth
+
+    - name: Create Test cert Monitor - Idempotence
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        domain: "example.com"
+        period: EVERY_DAY
+      register: _cert_synth_idem
+
+    - name: Check cert Monitor Create
+      ansible.builtin.assert:
+        that:
+          - _cert_synth is changed
+          - _cert_synth_idem is not changed
+
+    - name: Update Test cert Monitor
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        domain: "example.com"
+        period: EVERY_DAY
+        enabled: false
+        public_locations: ["AWS_US_WEST_1"]
+        days_before_cert_expires_to_trigger_failure: 10
+      register: _cert_update
+
+    - name: Update Test cert Monitor - Idempotence
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        domain: "example.com"
+        period: EVERY_DAY
+        enabled: false
+        public_locations: ["AWS_US_WEST_1"]
+        days_before_cert_expires_to_trigger_failure: 10
+      register: _cert_update_idem
+
+    - name: Check cert Monitor Update
+      ansible.builtin.assert:
+        that:
+          - _cert_update is changed
+          - _cert_update_idem is not changed
+
+    - name: Remove cert Monitor
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        state: absent
+      register: _rm_cert
+
+    - name: Remove cert Monitor - Idempotence
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        state: absent
+      register: _rm_cert_idem
+
+    - name: Check cert Monitor Remove
+      ansible.builtin.assert:
+        that:
+          - _rm_cert is changed
+          - _rm_cert_idem is not changed
+
+  always:
+    - name: Cleanup cert Monitor
+      newrelic.core.cert_synthetic_monitor:
+        name: "{{ synthetics_cert_test_name }}"
+        state: absent

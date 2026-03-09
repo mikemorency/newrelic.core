@@ -80,6 +80,7 @@ options:
         required: false
         default: EVENT_FLOW
         type: str
+        choices: ['EVENT_TIMER', 'EVENT_FLOW', 'CADENCE']
     data_aggregation_timer:
         description:
             - The length of time that data should be aggregated before evaluation
@@ -160,7 +161,7 @@ from ansible_collections.newrelic.core.plugins.module_utils.models.alert_conditi
     IncidentOccurences,
     IncidentOperator,
     IncidentPriority,
-    DataAggregationMethod
+    DataAggregationMethod,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.alert_condition import (
     NrqlAlertConditionApi,
@@ -235,7 +236,9 @@ class SyntheticMonitorAlertConditionModule(ModuleBase):
         )
         _cond.runbook_url = self.params["runbook_url"]
         _cond.data_aggregation_window = self.params["data_aggregation_window"]
-        _cond.data_aggregation_method = DataAggregationMethod[self.params["data_aggregation_method"]]
+        _cond.data_aggregation_method = DataAggregationMethod[
+            self.params["data_aggregation_method"]
+        ]
         _cond.data_aggregation_timer = self.params["data_aggregation_timer"]
         _cond.data_aggregation_delay = self.params["data_aggregation_delay"]
         _cond.signal_slide_by = None
@@ -280,7 +283,11 @@ def main():
             enabled=dict(type="bool", default=True, required=False),
             data_aggregation_delay=dict(type="int", default=120),
             data_aggregation_window=dict(type="int", default=600),
-            data_aggregation_method=dict(type="str", default="EVENT_FLOW", choices=[e.name for e in DataAggregationMethod]),
+            data_aggregation_method=dict(
+                type="str",
+                default="EVENT_FLOW",
+                choices=[e.name for e in DataAggregationMethod],
+            ),
             data_aggregation_timer=dict(type="int", required=False),
             critical_incident=dict(
                 type="dict",

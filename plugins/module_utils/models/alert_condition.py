@@ -4,7 +4,7 @@ from ansible_collections.newrelic.core.plugins.module_utils.models.entity import
     Entity,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.models.nr_object_base import (
-    NrStringEnum
+    NrStringEnum,
 )
 
 logger = logging.getLogger(__name__)
@@ -160,7 +160,9 @@ class NrqlStaticAlertCondition(NrqlAlertConditionBase):
         obj.description = data.get("description")
         obj.runbook_url = data.get("runbookUrl")
         obj.data_aggregation_window = data.get("signal")["aggregationWindow"]
-        obj.data_aggregation_method = DataAggregationMethod[data.get("signal")["aggregationMethod"]]
+        obj.data_aggregation_method = DataAggregationMethod[
+            data.get("signal")["aggregationMethod"]
+        ]
         obj.data_aggregation_timer = data.get("signal")["aggregationTimer"]
         obj.data_aggregation_delay = data.get("signal")["aggregationDelay"]
         obj.data_slide_by = data.get("signal")["slideBy"]

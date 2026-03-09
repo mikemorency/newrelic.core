@@ -47,7 +47,7 @@ class ChangeTrackingDeploymentApi(ChangeTrackingApi):
             guid=entity_guid,
             entity_search_query=event_search_query,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
         r = self.run_query(query=query.to_string())
         try:

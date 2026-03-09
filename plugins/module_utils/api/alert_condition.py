@@ -2,7 +2,7 @@ import logging
 
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.alert_condition import (
     NrqlBaseClassAlertConditionQueries,
-    NrqlStaticAlertAlertConditionQueries
+    NrqlStaticAlertAlertConditionQueries,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphApiBase,
@@ -47,22 +47,12 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
     ) -> list:
         logger.info("Getting conditions from search '%s'", entity_search_query)
         query = NrqlBaseClassAlertConditionQueries.condition_search(
-            account_id=account_id,
-            search_query=entity_search_query,
-            cursor=cursor
+            account_id=account_id, search_query=entity_search_query, cursor=cursor
         )
         r = self.run_query(query=query)
-        try:
-            query_conditions = r["data"]["actor"]["account"]["alerts"][
-                "nrqlConditionsSearch"
-            ]["nrqlConditions"]
-            cursor = r["data"]["actor"]["account"]["alerts"]["nrqlConditionsSearch"][
-                "nextCursor"
-            ]
-        except KeyError as e:
-            logger.fatal("Encountered key error on '%s'", e)
-            logger.fatal("response=%s", r)
-            raise Exception("Query response did not match excepted format")
+        query_conditions, cursor = (
+            NrqlBaseClassAlertConditionQueries.parse_search_response(response=r)
+        )
 
         found_conditions = []
         for condition_data in query_conditions:
@@ -83,7 +73,7 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
         r = self.run_query(
             query=NrqlBaseClassAlertConditionQueries.delete(condition=condition)
         )
-        return r["data"]["alertsConditionDelete"]["id"]
+        return NrqlBaseClassAlertConditionQueries.parse_delete_response(response=r)
 
     def create_condition(self, condition: NrqlAlertConditionBase):
         condition.validate_properties()
@@ -92,9 +82,9 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
         else:
             raise Exception("Unknown condition type %s" % condition.entity_type)
         r = self.run_query(query=query)
-        logger.debug(r)
-        condition.id = r["data"]["alertsNrqlConditionStaticCreate"]["id"]
-        condition.guid = r["data"]["alertsNrqlConditionStaticCreate"]["entityGuid"]
+        NrqlStaticAlertAlertConditionQueries.parse_create_response(
+            response=r, condition=condition
+        )
 
     def update_condition(self, condition: NrqlAlertConditionBase):
         condition.validate_properties()
@@ -103,6 +93,6 @@ class NrqlAlertConditionApi(NerdGraphApiBase):
         else:
             raise Exception("Unknown condition type %s" % condition.entity_type)
         r = self.run_query(query=query)
-        logger.debug(r)
-        condition.id = r["data"]["alertsNrqlConditionStaticUpdate"]["id"]
-        condition.guid = r["data"]["alertsNrqlConditionStaticUpdate"]["entityGuid"]
+        NrqlStaticAlertAlertConditionQueries.parse_update_response(
+            response=r, condition=condition
+        )

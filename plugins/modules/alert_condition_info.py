@@ -112,12 +112,12 @@ class MonitorAlertQueryModule(ModuleBase):
     def formulate_query(self):
         entity_search_query = dict()
         if self.params["name_like"]:
-            entity_search_query['nameLike'] = self.params["name_like"]
+            entity_search_query["nameLike"] = self.params["name_like"]
         else:
-            entity_search_query['name'] = self.params['name']
+            entity_search_query["name"] = self.params["name"]
 
         if self.params["policy_id"]:
-            entity_search_query['policyId'] = self.params['policy_id']
+            entity_search_query["policyId"] = self.params["policy_id"]
 
         return entity_search_query
 

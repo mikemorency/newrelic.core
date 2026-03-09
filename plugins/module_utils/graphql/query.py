@@ -21,7 +21,7 @@ def format_value_for_graphql_string(value: Any):
                 out += f"{{{dict_to_graphql_string(list_item)}}},"
             else:
                 out += f"{format_value_for_graphql_string(list_item)}"
-        out = out.rstrip(',')
+        out = out.rstrip(",")
         out += "]"
         return out
 
@@ -40,7 +40,7 @@ def dict_to_graphql_string(data: dict):
     for key, value in data.items():
         out += f"{key}: {format_value_for_graphql_string(value)},"
 
-    out = out.rstrip(',')
+    out = out.rstrip(",")
     return out
 
 
@@ -55,11 +55,7 @@ class Field(dict):
 
         self.arguments = arguments
         self.subfields = subfields
-        super().__init__(
-            name=name,
-            arguments=arguments,
-            subfields=subfields
-        )
+        super().__init__(name=name, arguments=arguments, subfields=subfields)
 
     def __str__(self):
         out = f"{self.name}"
@@ -72,7 +68,7 @@ class Field(dict):
         for subfield in self.subfields:
             out += f"{subfield},"
 
-        out = out.rstrip(',')
+        out = out.rstrip(",")
         out += "}"
         return out
 

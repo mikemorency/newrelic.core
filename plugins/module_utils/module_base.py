@@ -2,8 +2,8 @@ import logging
 from io import StringIO
 from ansible.module_utils.basic import env_fallback
 
-from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
-    NerdGraphQueryError,
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.errors import (
+    GraphQLQueryError,
 )
 
 
@@ -84,13 +84,13 @@ class ModuleBase:
             ),
             propegation_timeout=dict(
                 type="int",
-                default=15,
+                default=30,
             ),
         )
 
     def exit_with_exception(self, result: dict, exc: Exception):
         logger.fatal("%s", exc)
-        if isinstance(exc, NerdGraphQueryError):
+        if isinstance(exc, GraphQLQueryError):
             result["query_failure"] = exc.to_json()
         result["failed"] = True
         self._logger.write_streams(result)

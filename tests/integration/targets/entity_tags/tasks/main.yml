@@ -86,7 +86,7 @@
           two: [b]
       register: _replace_idem
     - name: Sleep
-      ansible.builin.pause:
+      ansible.builtin.pause:
         seconds: 30
     - name: Get Entity Info
       newrelic.core.entity_info:

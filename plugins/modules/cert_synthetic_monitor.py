@@ -11,51 +11,48 @@ __metaclass__ = type
 
 DOCUMENTATION = r"""
 ---
-module: ping_synthetic_monitor
-short_description: Manage a synthetic monitor of type ping/simple
+module: cert_synthetic_monitor
+short_description: Manage a synthetic monitor of type certificate check
 description:
-    - Creates, updates, or deletes a synthetic monitor of type 'SIMPLE',
-      also known as a ping monitor.
+    - Creates, updates, or deletes a synthetic monitor of type 'CERT_CHECK',
+      also known as a certificate check monitor.
 
 extends_documentation_fragment:
     - newrelic.core.module_base
     - newrelic.core.synthetic_monitors
 
-
 options:
-    url:
+    domain:
         description:
-            - The url that should be monitored
+            - The domain that should be monitored. This should not include the protocol (http/https)
             - This is required when state is present
         required: false
         type: str
-    validation_string:
+        aliases: [url]
+    days_before_cert_expires_to_trigger_failure:
         description:
-            - A string to search for in the synthetic response to validate the page loads as expected
-            - When not defined, a simple response code check is done (200 is successful)
+            - The number of days before the certificate expires that the monitor should trigger a failure
+            - For example, if you set this to 30, the monitor will trigger a failure if the certificate expires in the next 30 days
+            - Required when state is present
         required: false
-        type: str
-    verify_ssl:
-        description:
-            - If true, SSL will be validated when connecting to the URL
-        required: false
-        default: false
-        type: bool
+        default: 30
+        type: int
 """
 
 EXAMPLES = r"""
 - name: Create A Monitor
-  newrelic.core.ping_synthetic_monitor:
+  newrelic.core.cert_synthetic_monitor:
     api_key: "{{ api_key }}"
     account_id: 111111
     name: mon
     period: EVERY_15_MINUTES
-    url: "https://example.com"
+    domain: "example.com"
     enabled: True
     state: present
+    days_before_cert_expires_to_trigger_failure: 30
 
 - name: Delete A Monitor
-  newrelic.core.ping_synthetic_monitor:
+  newrelic.core.cert_synthetic_monitor:
     api_key: "{{ api_key }}"
     name: mon
     state: absent
@@ -78,7 +75,7 @@ from ansible_collections.newrelic.core.plugins.module_utils.api.synthetic import
     SyntheticMonitorApi,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.models.synthetic import (
-    PingSyntheticMonitor,
+    CertSyntheticMonitor,
     MonitorPeriod,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
@@ -89,7 +86,7 @@ from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
 logger = logging.getLogger(__name__)
 
 
-class PingSyntheticMonitorModule(ModuleBase):
+class CertSyntheticMonitorModule(ModuleBase):
     def __init__(self, module):
         super().__init__(module)
         self.api = SyntheticMonitorApi(
@@ -143,16 +140,17 @@ class PingSyntheticMonitorModule(ModuleBase):
         self.api.delete_monitor(monitor=self.live_monitor)
 
     def create_monitor_object_based_on_params(self):
-        monitor = PingSyntheticMonitor(
+        monitor = CertSyntheticMonitor(
             name=self.params["name"], account_id=self.params["account_id"]
         )
-        monitor.url = self.params["url"]
+        monitor.url = self.params["domain"]
         monitor.private_locations = self.params["private_locations"]
         monitor.public_locations = self.params["public_locations"]
         monitor.period = MonitorPeriod[self.params["period"]]
         monitor.enabled = self.params["enabled"]
-        monitor.validation_string = self.params["validation_string"]
-        monitor.verify_ssl = self.params["verify_ssl"]
+        monitor.days_before_cert_expires_to_trigger_failure = self.params[
+            "days_before_cert_expires_to_trigger_failure"
+        ]
 
         return monitor
 
@@ -168,7 +166,7 @@ def run_module():
                 default="present",
                 required=False,
             ),
-            url=dict(type="str", default=None, required=False),
+            domain=dict(type="str", default=None, required=False, aliases=["url"]),
             period=dict(
                 type="str",
                 default="EVERY_15_MINUTES",
@@ -185,8 +183,9 @@ def run_module():
                 type="list", default=[], required=False, elements="str"
             ),
             enabled=dict(type="bool", default=True, required=False),
-            validation_string=dict(type="str", default=None, required=False),
-            verify_ssl=dict(type="bool", default=False, required=False),
+            days_before_cert_expires_to_trigger_failure=dict(
+                type="int", default=30, required=False
+            ),
         ),
     }
 
@@ -195,20 +194,20 @@ def run_module():
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
-    psmmm = PingSyntheticMonitorModule(module)
+    smmm = CertSyntheticMonitorModule(module)
     try:
-        psmmm.get_live_monitor_from_newrelic()
+        smmm.get_live_monitor_from_newrelic()
 
         if module.params["state"] == "absent":
-            psmmm.state_absent(result)
+            smmm.state_absent(result)
 
         elif module.params["state"] == "present":
-            psmmm.state_present(result)
+            smmm.state_present(result)
 
     except Exception as e:
-        psmmm.exit_with_exception(result, e)
+        smmm.exit_with_exception(result, e)
 
-    psmmm.exit(result)
+    smmm.exit(result)
 
 
 def main():

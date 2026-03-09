@@ -8,7 +8,7 @@ from ansible_collections.newrelic.core.plugins.modules.alert_condition_info impo
     main as module_main,
 )
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_condition.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_condition import (
     NrqlAlertConditionBase,
 )
 

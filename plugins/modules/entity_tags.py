@@ -137,10 +137,10 @@ from ansible_collections.newrelic.core.plugins.module_utils.module_base import (
     ModuleBase,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.entity import (
-    EntityQueries
+    EntityQueries,
 )
-from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
-    NerdGraphQueryError
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.errors import (
+    GraphQLQueryError,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.entity import EntityApi
 from ansible_collections.newrelic.core.plugins.module_utils.models.entity import (
@@ -165,9 +165,8 @@ class EntityTagModule(ModuleBase):
     def entity(self):
         if not self._entity:
             self._entity = self.api.get_entity_by_guid_and_account_id(
-            guid=self.params["guid"],
-            account_id=self.params["account_id"]
-        )
+                guid=self.params["guid"], account_id=self.params["account_id"]
+            )
 
         return self._entity
 
@@ -241,7 +240,9 @@ class EntityTagModule(ModuleBase):
 
         if len(removed_values) > 0:
             logger.info("Removing specific values from entity: %s.", removed_values)
-            query = EntityQueries.remove_tag_values(guid=self.entity.guid, entity_tags=removed_values)
+            query = EntityQueries.remove_tag_values(
+                guid=self.entity.guid, entity_tags=removed_values
+            )
             self.__run_query_with_error_catch(
                 query=query, error_key="taggingDeleteTagValuesFromEntity"
             )
@@ -256,10 +257,7 @@ class EntityTagModule(ModuleBase):
             raise Exception("Query response did not match excepted format")
 
         if errors:
-            raise NerdGraphQueryError(
-                response=r,
-                query=query
-            )
+            raise GraphQLQueryError(response=r, query=query)
 
     def _wait_for_tag_changes(self, changed: EntityTags, final_check: bool = False):
         """
@@ -276,8 +274,7 @@ class EntityTagModule(ModuleBase):
             time.sleep(_time_increment)
             _time += _time_increment
             remote_entity_def = self.api.get_entity_by_guid_and_account_id(
-                guid=self.params["guid"],
-                account_id=self.params["account_id"]
+                guid=self.params["guid"], account_id=self.params["account_id"]
             )
             for tag in changed:
                 if (
@@ -298,7 +295,7 @@ class EntityTagModule(ModuleBase):
         # wait one more time because the nr api really does mess with you sometimes
         if not final_check:
             self._wait_for_tag_changes(changed=changed, final_check=True)
-        #time.sleep(_time_increment)
+        # time.sleep(_time_increment)
 
 
 def main():

@@ -14,6 +14,8 @@
         name: "{{ synthetics_test_policy }}"
     - name: Test Ping Monitor
       ansible.builtin.include_tasks: ping_synthetic.yml
+    - name: Test cert Monitor
+      ansible.builtin.include_tasks: cert_synthetic.yml
 
   always:
     - name: Cleanup Policy

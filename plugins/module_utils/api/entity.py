@@ -31,12 +31,16 @@ class EntityApi(NerdGraphApiBase):
     def get_entity_by_guid_and_account_id(self, guid, account_id) -> Entity:
         logger.info("Looking up entity with guid %s in account %s", guid, account_id)
         entity_search_query = "id = '%s' and accountId = '%s'" % (guid, account_id)
-        for entity in self.get_entities_by_search_query(entity_search_query=entity_search_query):
+        for entity in self.get_entities_by_search_query(
+            entity_search_query=entity_search_query
+        ):
             return entity
 
         return None
 
-    def get_entities_by_search_query(self, entity_search_query: str) -> Generator[Entity, None, None]:
+    def get_entities_by_search_query(
+        self, entity_search_query: str
+    ) -> Generator[Entity, None, None]:
         logger.info("Looking up entity with query %s", entity_search_query)
         query = EntityQueries.entity_search(entity_search_query=entity_search_query)
         r = self.run_query(query=query)

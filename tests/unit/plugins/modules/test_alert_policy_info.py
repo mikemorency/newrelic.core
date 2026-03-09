@@ -8,7 +8,7 @@ from ansible_collections.newrelic.core.plugins.modules.alert_policy_info import 
     main as module_main,
 )
 
-from ansible_collections.newrelic.core.plugins.module_utils.alert_policy.objects import (
+from ansible_collections.newrelic.core.plugins.module_utils.models.alert_policy import (
     AlertPolicy,
 )
 

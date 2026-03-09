@@ -3,17 +3,21 @@ from enum import Enum
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.query import (
     GraphQLQuery,
     Field,
-    add_to_dict_if_not_none
+    add_to_dict_if_not_none,
 )
 
 from ansible_collections.newrelic.core.plugins.module_utils.models.alert_condition import (
     NrqlAlertConditionBase,
     NrqlStaticAlertCondition,
-    DataAggregationMethod
+    DataAggregationMethod,
+)
+
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.errors import (
+    GraphQLResponseParsingError,
 )
 
 
-class NrqlBaseClassAlertConditionQueries():
+class NrqlBaseClassAlertConditionQueries:
     @staticmethod
     def condition_search(account_id: int, search_query: str = None, cursor: str = None):
         gqlquery = GraphQLQuery(operation="query")
@@ -29,8 +33,8 @@ class NrqlBaseClassAlertConditionQueries():
                 "evaluationDelay",
                 "fillOption",
                 "fillValue",
-                "slideBy"
-            ]
+                "slideBy",
+            ],
         )
         terms_results_subfield = Field(
             name="terms",
@@ -39,8 +43,8 @@ class NrqlBaseClassAlertConditionQueries():
                 "operator",
                 "threshold",
                 "thresholdDuration",
-                "thresholdOccurrences"
-            ]
+                "thresholdOccurrences",
+            ],
         )
         conditions_results_subfield = Field(
             name="nrqlConditions",
@@ -55,28 +59,20 @@ class NrqlBaseClassAlertConditionQueries():
                 "policyId",
                 signal_results_subfield,
                 terms_results_subfield,
-                "type"
-            ]
+                "type",
+            ],
         )
 
         conditions_search_field = Field(
             name="nrqlConditionsSearch",
             arguments={"searchCriteria": search_query, "cursor": cursor},
-            subfields=[
-                "totalCount",
-                "nextCursor",
-                conditions_results_subfield
-            ]
+            subfields=["totalCount", "nextCursor", conditions_results_subfield],
         )
 
         alerts_field = Field(name="alerts", subfields=[conditions_search_field])
 
         account_field = Field(
-            name="account",
-            arguments={"id": int(account_id)},
-            subfields=[
-                alerts_field
-            ]
+            name="account", arguments={"id": int(account_id)}, subfields=[alerts_field]
         )
 
         actor_field = Field(name="actor", subfields=[account_field])
@@ -85,17 +81,46 @@ class NrqlBaseClassAlertConditionQueries():
         return gqlquery
 
     @staticmethod
+    def parse_search_response(response: dict) -> (list, str):
+        try:
+            query_conditions = response["data"]["actor"]["account"]["alerts"][
+                "nrqlConditionsSearch"
+            ]["nrqlConditions"]
+            cursor = response["data"]["actor"]["account"]["alerts"][
+                "nrqlConditionsSearch"
+            ]["nextCursor"]
+        except KeyError as e:
+            raise GraphQLResponseParsingError(
+                response=response,
+                error=e,
+                msg="Unable to parse alert condition search response due to unexpected response format.",
+            )
+
+        return query_conditions, cursor
+
+    @staticmethod
     def delete(condition: NrqlAlertConditionBase):
         gqlquery = GraphQLQuery(operation="mutation")
 
         condition_delete_field = Field(
             name="alertsConditionDelete",
             arguments={"accountId": int(condition.account_id), "id": condition.id},
-            subfields=["id"]
+            subfields=["id"],
         )
 
         gqlquery.fields.append(condition_delete_field)
         return gqlquery
+
+    @staticmethod
+    def parse_delete_response(response: dict) -> str:
+        try:
+            return response["data"]["alertsConditionDelete"]["id"]
+        except KeyError as e:
+            raise GraphQLResponseParsingError(
+                response=response,
+                error=e,
+                msg="Unable to parse alert condition delete response due to unexpected response format.",
+            )
 
 
 class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
@@ -106,7 +131,7 @@ class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
 
         signal_dict = dict(
             aggregationWindow=condition.data_aggregation_window,
-            aggregationMethod=condition.data_aggregation_method
+            aggregationMethod=condition.data_aggregation_method,
         )
         add_to_dict_if_not_none(signal_dict, "slideBy", condition.data_slide_by)
         if condition.data_aggregation_method is not DataAggregationMethod.EVENT_TIMER:
@@ -117,24 +142,24 @@ class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
 
         terms_list = list()
         for term in condition.incident_terms:
-            terms_list.append(dict(
-                threshold=term.threshold,
-                thresholdDuration=term.duration,
-                thresholdOccurrences=term.occurrences,
-                operator=term.operator,
-                priority=term.priority
-            ))
+            terms_list.append(
+                dict(
+                    threshold=term.threshold,
+                    thresholdDuration=term.duration,
+                    thresholdOccurrences=term.occurrences,
+                    operator=term.operator,
+                    priority=term.priority,
+                )
+            )
 
         condition_dict = dict(
             name=condition.name,
             enabled=bool(condition.enabled),
-            nrql=dict(
-                query=condition.nrql_query
-            ),
+            nrql=dict(query=condition.nrql_query),
             signal=signal_dict,
             terms=terms_list,
             valueFunction=ConditionValueFunction.SINGLE_VALUE,
-            violationTimeLimitSeconds=86400
+            violationTimeLimitSeconds=86400,
         )
         add_to_dict_if_not_none(condition_dict, "description", condition.description)
         add_to_dict_if_not_none(condition_dict, "runbookUrl", condition.runbook_url)
@@ -142,7 +167,9 @@ class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
         return condition_dict
 
     @staticmethod
-    def create(condition: NrqlStaticAlertCondition, append_to_query: GraphQLQuery = None):
+    def create(
+        condition: NrqlStaticAlertCondition, append_to_query: GraphQLQuery = None
+    ):
         if not append_to_query:
             gqlquery = GraphQLQuery(operation="mutation")
         else:
@@ -153,19 +180,36 @@ class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
             arguments=dict(
                 accountId=int(condition.account_id),
                 policyId=int(condition.policy_id),
-                condition=NrqlStaticAlertAlertConditionQueries._condition_to_query_dict(condition)
+                condition=NrqlStaticAlertAlertConditionQueries._condition_to_query_dict(
+                    condition
+                ),
             ),
-            subfields=[
-                "id",
-                "entityGuid"
-            ]
+            subfields=["id", "entityGuid"],
         )
 
         gqlquery.fields.append(create_field)
         return gqlquery
 
     @staticmethod
-    def update(condition: NrqlStaticAlertCondition, append_to_query: GraphQLQuery = None):
+    def parse_create_response(
+        response: dict, condition: NrqlStaticAlertCondition
+    ) -> None:
+        try:
+            condition.id = response["data"]["alertsNrqlConditionStaticCreate"]["id"]
+            condition.guid = response["data"]["alertsNrqlConditionStaticCreate"][
+                "entityGuid"
+            ]
+        except KeyError as e:
+            raise GraphQLResponseParsingError(
+                response=response,
+                error=e,
+                msg="Unable to parse alert condition delete response due to unexpected response format.",
+            )
+
+    @staticmethod
+    def update(
+        condition: NrqlStaticAlertCondition, append_to_query: GraphQLQuery = None
+    ):
         if not append_to_query:
             gqlquery = GraphQLQuery(operation="mutation")
         else:
@@ -176,13 +220,28 @@ class NrqlStaticAlertAlertConditionQueries(NrqlBaseClassAlertConditionQueries):
             arguments=dict(
                 accountId=int(condition.account_id),
                 id=condition.id,
-                condition=NrqlStaticAlertAlertConditionQueries._condition_to_query_dict(condition)
+                condition=NrqlStaticAlertAlertConditionQueries._condition_to_query_dict(
+                    condition
+                ),
             ),
-            subfields=[
-                "id",
-                "entityGuid"
-            ]
+            subfields=["id", "entityGuid"],
         )
 
         gqlquery.fields.append(update_field)
         return gqlquery
+
+    @staticmethod
+    def parse_update_response(
+        response: dict, condition: NrqlStaticAlertCondition
+    ) -> None:
+        try:
+            condition.id = response["data"]["alertsNrqlConditionStaticUpdate"]["id"]
+            condition.guid = response["data"]["alertsNrqlConditionStaticUpdate"][
+                "entityGuid"
+            ]
+        except KeyError as e:
+            raise GraphQLResponseParsingError(
+                response=response,
+                error=e,
+                msg="Unable to parse alert condition update response due to unexpected response format.",
+            )

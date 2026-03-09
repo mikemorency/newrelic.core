@@ -3,29 +3,16 @@ import time
 
 from ansible_collections.newrelic.core.plugins.module_utils.models.synthetic import (
     SyntheticMonitorBase,
-    PingSyntheticMonitor,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.nerdgraph_api_base import (
     NerdGraphApiBase,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.synthetic import (
     SyntheticMonitorBaseClassQueries,
-    PingSyntheticMonitorQueries
 )
 
 
 logger = logging.getLogger(__name__)
-
-
-class SyntheticMonitorQueryError(Exception):
-    def __init__(self, error_descriptions, monitor, action):
-        self.monitor = monitor
-        self.error_descriptions = error_descriptions
-        self.action = action
-        super().__init__(
-            "Failed to %s monitor %s because %s"
-            % (action, monitor.name, error_descriptions)
-        )
 
 
 class SyntheticMonitorApi(NerdGraphApiBase):
@@ -65,27 +52,16 @@ class SyntheticMonitorApi(NerdGraphApiBase):
             cursor=cursor,
         )
         r = self.run_query(query=query)
-        try:
-            query_monitors = r["data"]["actor"]["entitySearch"]["results"]["entities"]
-            next_cursor = r["data"]["actor"]["entitySearch"]["results"]["nextCursor"]
-        except KeyError as e:
-            logger.fatal("Encountered key error on '%s'", e)
-            logger.fatal("response=%s", r)
-            raise Exception("Query response did not match excepted format")
-
+        query_monitors, next_cursor = (
+            SyntheticMonitorBaseClassQueries.parse_search_response(response=r)
+        )
         logger.info(
             "Found %s monitors. Next cursor is %s", len(query_monitors), next_cursor
         )
         found_monitors = []
         for monitor_data in query_monitors:
-            found_monitors += [self.__create_monitor_from_data(monitor_data)]
+            found_monitors += [SyntheticMonitorBase.from_api_data(monitor_data)]
         return found_monitors, next_cursor
-
-    def __create_monitor_from_data(self, monitor_data):
-        if monitor_data["monitorType"] == PingSyntheticMonitor.MONITOR_TYPE:
-            return PingSyntheticMonitor.from_api_data(monitor_data)
-
-        raise Exception("Unknown monitor type %s" % monitor_data["monitorType"])
 
     def delete_monitor(self, monitor: SyntheticMonitorBase) -> str:
         logger.info(
@@ -94,18 +70,15 @@ class SyntheticMonitorApi(NerdGraphApiBase):
         query = SyntheticMonitorBaseClassQueries.delete(monitor=monitor)
         r = self.run_query(query=query)
         self.__wait_for_monitor_to_not_exist(monitor=monitor)
-        return r["data"]["syntheticsDeleteMonitor"]["deletedGuid"]
+        return SyntheticMonitorBaseClassQueries.parse_delete_response(response=r)
 
     def create_monitor(self, monitor: SyntheticMonitorBase):
         logger.info("Creating synthetic monitor %s", monitor.name)
-        query = PingSyntheticMonitorQueries.create(monitor=monitor)
+        query = SyntheticMonitorBaseClassQueries.create(monitor=monitor)
         r = self.run_query(query=query)
-        logger.debug(r)
-        self.raise_for_errors(
-            r["data"]["syntheticsCreateSimpleMonitor"]["errors"], monitor, "create"
+        SyntheticMonitorBaseClassQueries.parse_create_response(
+            response=r, monitor=monitor
         )
-        monitor.guid = r["data"]["syntheticsCreateSimpleMonitor"]["monitor"]["guid"]
-        monitor.id = r["data"]["syntheticsCreateSimpleMonitor"]["monitor"]["id"]
         logger.info(
             "Monitor created with GUID %s, waiting for changes to be reflected in API",
             monitor.guid,
@@ -116,13 +89,11 @@ class SyntheticMonitorApi(NerdGraphApiBase):
         logger.info(
             "Updating synthetic monitor %s with GUID %s", monitor.name, monitor.guid
         )
-        query = PingSyntheticMonitorQueries.update(monitor=monitor)
+        query = SyntheticMonitorBaseClassQueries.update(monitor=monitor)
         r = self.run_query(query=query)
-        logger.debug(r)
-        monitor.guid = r["data"]["syntheticsUpdateSimpleBrowserMonitor"]["monitor"][
-            "guid"
-        ]
-        monitor.id = r["data"]["syntheticsUpdateSimpleBrowserMonitor"]["monitor"]["id"]
+        SyntheticMonitorBaseClassQueries.parse_update_response(
+            response=r, monitor=monitor
+        )
         self.__wait_for_monitor_to_exist(monitor=monitor)
 
     def __wait_for_monitor_to_exist(self, monitor):
@@ -161,21 +132,4 @@ class SyntheticMonitorApi(NerdGraphApiBase):
             _time += 3
             remote_monitor_def = self.get_monitor_by_name_and_account(
                 name=monitor.name, account_id=monitor.account_id
-            )
-
-    def raise_for_errors(self, errors, monitor, action):
-        if not errors:
-            return
-
-        try:
-            raise SyntheticMonitorQueryError(
-                error_descriptions=[error["description"] for error in errors],
-                monitor=monitor,
-                action=action,
-            )
-        except KeyError:
-            raise SyntheticMonitorQueryError(
-                error_descriptions=errors,
-                monitor=monitor,
-                action=action,
             )

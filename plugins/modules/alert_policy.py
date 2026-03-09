@@ -74,7 +74,7 @@ from ansible.module_utils.basic import AnsibleModule
 import logging
 from ansible_collections.newrelic.core.plugins.module_utils.models.alert_policy import (
     AlertPolicy,
-    IncidentPreference
+    IncidentPreference,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.alert_policy import (
     AlertPolicyApi,
@@ -138,7 +138,7 @@ class AlertPolicyModule(ModuleBase):
         policy = AlertPolicy(
             name=self.params["name"],
             account_id=self.params["account_id"],
-            incident_preference=IncidentPreference[self.params["incident_preference"]]
+            incident_preference=IncidentPreference[self.params["incident_preference"]],
         )
 
         return policy

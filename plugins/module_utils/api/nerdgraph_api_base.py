@@ -1,11 +1,16 @@
 import logging
 import json
-import re
 import time
 import random
 
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.errors import (
+    ApiRateLimitError,
+)
+from ansible_collections.newrelic.core.plugins.module_utils.graphql.response_parser import (
+    GraphQLResponseParser,
+)
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.query import (
-    GraphQLQuery
+    GraphQLQuery,
 )
 
 MISSING_IMPORTS = set()
@@ -34,7 +39,9 @@ class NerdGraphApiBase:
         self.wait_for_propegation = wait_for_propegation
         self.propegation_timeout = propegation_timeout
 
-    def run_query(self, query: GraphQLQuery):
+    def run_query(
+        self, query: GraphQLQuery, response_handler: GraphQLResponseParser = None
+    ):
         try:
             r = requests.post(
                 url=self.api_base_url,
@@ -43,8 +50,8 @@ class NerdGraphApiBase:
                 ),
                 data=json.dumps({"query": query.to_gql_string()}),
             )
-            self.handle_query_errors(r, query)
-        except NerdGraphRateLimitError as e:
+            self.handle_query_errors(r, query, response_handler)
+        except ApiRateLimitError as e:
             logger.warning("%s", e)
             x = random.randrange(0, 15, 1)
             logger.info("Retrying in %s seconds", x)
@@ -56,60 +63,19 @@ class NerdGraphApiBase:
                 ),
                 data=json.dumps({"query": query.to_gql_string()}),
             )
-            self.handle_query_errors(r, query)
+            self.handle_query_errors(r, query, response_handler)
 
         return r.json()
 
-    def handle_query_errors(self, response, query: GraphQLQuery):
+    def handle_query_errors(
+        self,
+        response,
+        query: GraphQLQuery,
+        response_handler: GraphQLResponseParser = None,
+    ):
+        if not response_handler:
+            response_handler = GraphQLResponseParser()
         response.raise_for_status()
-        response = response.json()
-        errors = response.get("errors", [])
-        if not errors:
-            return
-
-        if len(errors) > 1:
-            logger.fatal("errors=%s", errors)
-            raise Exception("check nerdgraph_client.py")
-
-        if errors[0].get("description", "").startswith("Rate limit exceeded"):
-            raise NerdGraphRateLimitError(errors[0])
-
-        if errors[0].get("message", "").startswith("Validation Error"):
-            raise NerdGraphValidationError(response, query)
-
-        raise NerdGraphQueryError(response, query)
-
-
-class NerdGraphQueryError(Exception):
-    def __init__(self, response, query: GraphQLQuery, msg: str = None):
-        if not msg:
-            msg = "An error was returned while executing a query"
-        super().__init__(msg)
-        self.response = response
-        self.query = query
-
-    def to_json(self):
-        return {
-            "response": self.response,
-            "query": self.query,
-            "query_graphql_string": self.query.to_gql_string()
-        }
-
-
-class NerdGraphValidationError(NerdGraphQueryError):
-    def __init__(self, response, query):
-        super().__init__(
-            response, query, msg="There was a validation error with a query."
+        response_handler.raise_for_generic_query_errors(
+            query=query, response=response.json()
         )
-        self.errors = []
-        for error in response["errors"]:
-            for val_err in error["extensions"]["validationErrors"]:
-                self.errors.append(val_err["reason"])
-
-    def to_json(self):
-        return {"errors": self.errors}
-
-
-class NerdGraphRateLimitError(Exception):
-    def __init__(self, error):
-        super().__init__(error)

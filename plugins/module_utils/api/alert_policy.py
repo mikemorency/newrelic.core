@@ -2,7 +2,7 @@ import logging
 import time
 
 from ansible_collections.newrelic.core.plugins.module_utils.graphql.queries.alert_policy import (
-    AlertPolicyQueries
+    AlertPolicyQueries,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.models.alert_policy import (
     AlertPolicy,

@@ -198,7 +198,7 @@ from ansible_collections.newrelic.core.plugins.module_utils.models.alert_conditi
     IncidentPriority,
     IncidentOperator,
     IncidentOccurences,
-    DataAggregationMethod
+    DataAggregationMethod,
 )
 from ansible_collections.newrelic.core.plugins.module_utils.api.alert_condition import (
     NrqlAlertConditionApi,
@@ -272,7 +272,9 @@ class NrqlStaticAlertConditionModule(ModuleBase):
 
         _cond.data_aggregation_window = self.params["data_aggregation_window"]
         _cond.data_slide_by = self.params["data_aggregation_sliding_window"]
-        _cond.data_aggregation_method = DataAggregationMethod[self.params["data_aggregation_method"]]
+        _cond.data_aggregation_method = DataAggregationMethod[
+            self.params["data_aggregation_method"]
+        ]
         if _cond.data_aggregation_method is DataAggregationMethod.EVENT_TIMER:
             _cond.data_aggregation_timer = self.params["data_aggregation_timer"]
         else:
@@ -284,9 +286,13 @@ class NrqlStaticAlertConditionModule(ModuleBase):
                 IncidentTerm(
                     priority=IncidentPriority.CRITICAL,
                     threshold=self.params["critical_incident"]["threshold"],
-                    operator=IncidentOperator[self.params["critical_incident"]["operator"]],
+                    operator=IncidentOperator[
+                        self.params["critical_incident"]["operator"]
+                    ],
                     duration=self.params["critical_incident"]["duration"],
-                    occurrences=IncidentOccurences[self.params["critical_incident"]["occurrences"]],
+                    occurrences=IncidentOccurences[
+                        self.params["critical_incident"]["occurrences"]
+                    ],
                 )
             )
         if self.params["warning_incident"]:
@@ -294,9 +300,13 @@ class NrqlStaticAlertConditionModule(ModuleBase):
                 IncidentTerm(
                     priority=IncidentPriority.WARNING,
                     threshold=self.params["warning_incident"]["threshold"],
-                    operator=IncidentOperator[self.params["warning_incident"]["operator"]],
+                    operator=IncidentOperator[
+                        self.params["warning_incident"]["operator"]
+                    ],
                     duration=self.params["warning_incident"]["duration"],
-                    occurrences=IncidentOccurences[self.params["warning_incident"]["occurrences"]],
+                    occurrences=IncidentOccurences[
+                        self.params["warning_incident"]["occurrences"]
+                    ],
                 )
             )
 
@@ -341,7 +351,9 @@ def main():
                     threshold=dict(type="int", required=True),
                     duration=dict(type="int", default=600),
                     occurrences=dict(
-                        type="str", default="ALL", choices=[e.name for e in IncidentOccurences]
+                        type="str",
+                        default="ALL",
+                        choices=[e.name for e in IncidentOccurences],
                     ),
                 ),
             ),
@@ -357,7 +369,9 @@ def main():
                     threshold=dict(type="int", required=True),
                     duration=dict(type="int", default=600),
                     occurrences=dict(
-                        type="str", default="ALL", choices=[e.name for e in IncidentOccurences]
+                        type="str",
+                        default="ALL",
+                        choices=[e.name for e in IncidentOccurences],
                     ),
                 ),
             ),

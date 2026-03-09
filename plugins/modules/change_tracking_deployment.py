@@ -183,7 +183,7 @@ def run_module():
             ),
             group_id=dict(type="str", required=False),
             description=dict(type="str", required=False),
-            timestamp=dict(type="str", required=False)
+            timestamp=dict(type="str", required=False),
         ),
     }
 

@@ -1,3 +1,4 @@
+from ast import Attribute
 from enum import Enum
 from typing import Any
 
@@ -32,7 +33,10 @@ def format_value_for_graphql_string(value: Any):
         return f"{value.value}"
 
     else:
-        return f'"{value}"'
+        try:
+            return f'"{value.replace('"', '\\"')}"'
+        except AttributeError:
+            return f'"{value}"'
 
 
 def dict_to_graphql_string(data: dict):
